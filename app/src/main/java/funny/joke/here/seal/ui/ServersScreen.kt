@@ -150,7 +150,7 @@ fun ConnectionCard(
                             var result = withContext(Dispatchers.IO) {
                                 connection.openSession()
                                 try {
-                                    connection.runCmd("uname -a")
+                                    connection.runCmd(arrayOf("uname -a"))
                                 } catch (e: Exception) {
                                     isError = true
                                     if (e.message != null) {
@@ -173,7 +173,7 @@ fun ConnectionCard(
 
                             result = withContext(Dispatchers.IO) {
                                 try {
-                                    connection.runCmd("docker info")
+                                    connection.runCmd(arrayOf("docker info"))
                                 } catch (e: Exception) {
                                     isError = true
                                     if (e.message != null) {
@@ -197,7 +197,7 @@ fun ConnectionCard(
 
                             result = withContext(Dispatchers.IO) {
                                 try {
-                                    connection.runCmd("docker run -q --rm hello-world")
+                                    connection.runCmd(arrayOf("docker run -q --rm hello-world"))
                                 } catch (e: Exception) {
                                     isError = true
                                     if (e.message != null) {
