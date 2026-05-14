@@ -28,6 +28,8 @@ public final class SSH {
     private final String username;
     private final String password;
 
+    private Session session;
+
     /** Used when creating a brand-new connection — auto-generates UUID. */
     public SSH(String name, String host, int port, String username, String password) {
         this(UUID.randomUUID().toString(), name, host, port, username, password);
@@ -95,54 +97,36 @@ public final class SSH {
 
     // ── SSH execution ──────────────────────────────────────────────────────
 
-    /**
-     * Opens an SSH session, executes {@code command}, returns stdout as a string.
-     * Blocks the calling thread — run on a background thread (e.g. Dispatchers.IO).
-     */
-    public String runCmd(String command) {
+    public void openSession() throws JSchException {
         JSch jsch = new JSch();
 
-        Session session;
-        try {
-            session = jsch.getSession(username, host, port);
-        } catch (JSchException e) {
-            return "invalid host/user: " + e.getMessage();
-        }
+        session = jsch.getSession(username, host, port);
 
         session.setPassword(password);
         session.setConfig("StrictHostKeyChecking", "no");
 
-        try {
-            session.connect();
-        } catch (JSchException e) {
-            return "failed to connect: " + e.getMessage();
-        }
+        session.connect();
+    }
 
+    public void closeSession() {
+        session.disconnect();
+        session = null;
+    }
+
+    public String runCmd(String command) throws JSchException, IOException {
         ChannelExec channel;
         BufferedReader reader;
-        try {
-            channel = (ChannelExec) session.openChannel("exec");
-            channel.setCommand(command);
-            reader = new BufferedReader(new InputStreamReader(channel.getInputStream()));
-            channel.connect();
-        } catch (JSchException e) {
-            session.disconnect();
-            return "failed to open channel: " + e.getMessage();
-        } catch (IOException e) {
-            session.disconnect();
-            return "failed to read stream: " + e.getMessage();
-        }
+
+        channel = (ChannelExec) session.openChannel("exec");
+        channel.setCommand(command);
+        reader = new BufferedReader(new InputStreamReader(channel.getInputStream()));
+        channel.connect();
 
         String result = reader.lines().collect(Collectors.joining("\n"));
 
         channel.disconnect();
-        session.disconnect();
 
-        try {
-            reader.close();
-        } catch (IOException e) {
-            return "couldn't close reader: " + e.getMessage();
-        }
+        reader.close();
 
         return result;
     }

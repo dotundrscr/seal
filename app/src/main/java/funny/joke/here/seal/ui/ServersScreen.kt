@@ -145,22 +145,35 @@ fun ConnectionCard(
                     if (!isTesting) {
                         isTesting = true
                         scope.launch {
+                            var isError = false
+
                             val result = withContext(Dispatchers.IO) {
-                                connection.runCmd("uname -a")
+                                connection.openSession()
+                                try {
+                                    connection.runCmd("uname -a")
+                                } catch (e: Exception) {
+                                    isError = true
+                                    if (e.message != null) {
+                                        return@withContext e.message
+                                    } else {
+                                        return@withContext "unknown error"
+                                    }
+                                }
                             }
-                            val isError = result.startsWith("invalid") ||
-                                          result.startsWith("failed")  ||
-                                          result.startsWith("couldn't")
+
                             val message = when {
-                                isError        -> "✗  ${result.take(80)}"
-                                result.isBlank() -> "✓  ${connection.name}: connected"
+                                isError        -> "✗  ${result!!.take(80)}"
+                                result!!.isBlank() -> "✓  ${connection.name}: connected"
                                 else           -> "✓  ${connection.name}: ${result.take(60)}"
+                            }
+                            isTesting = false
+                            withContext(Dispatchers.IO) {
+                                connection.closeSession()
                             }
                             snackbarHostState.showSnackbar(
                                 message  = message,
                                 duration = SnackbarDuration.Long
                             )
-                            isTesting = false
                         }
                     }
                 },
