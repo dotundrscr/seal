@@ -147,7 +147,7 @@ fun ConnectionCard(
                         scope.launch {
                             var isError = false
 
-                            val result = withContext(Dispatchers.IO) {
+                            var result = withContext(Dispatchers.IO) {
                                 connection.openSession()
                                 try {
                                     connection.runCmd("uname -a")
@@ -161,18 +161,67 @@ fun ConnectionCard(
                                 }
                             }
 
-                            val message = when {
+                            var message = when {
                                 isError        -> "✗  ${result!!.take(80)}"
                                 result!!.isBlank() -> "✓  ${connection.name}: connected"
                                 else           -> "✓  ${connection.name}: ${result.take(60)}"
                             }
+                            snackbarHostState.showSnackbar(
+                                message  = message,
+                                duration = SnackbarDuration.Short
+                            )
+
+                            result = withContext(Dispatchers.IO) {
+                                try {
+                                    connection.runCmd("docker info")
+                                } catch (e: Exception) {
+                                    isError = true
+                                    if (e.message != null) {
+                                        return@withContext e.message
+                                    } else {
+                                        return@withContext "unknown error"
+                                    }
+                                }
+                            }
+
+                            message = when {
+                                isError        -> "✗  ${result!!.take(80)}"
+                                result!!.isBlank() -> "✓  ${connection.name}: connected"
+                                else           -> "✓  ${connection.name}: ${result.take(33)}"
+                            }
+
+                            snackbarHostState.showSnackbar(
+                                message  = message,
+                                duration = SnackbarDuration.Short
+                            )
+
+                            result = withContext(Dispatchers.IO) {
+                                try {
+                                    connection.runCmd("docker run -q --rm hello-world")
+                                } catch (e: Exception) {
+                                    isError = true
+                                    if (e.message != null) {
+                                        return@withContext e.message
+                                    } else {
+                                        return@withContext "unknown error"
+                                    }
+                                }
+                            }
+
+                            message = when {
+                                isError        -> "✗  ${result!!.take(80)}"
+                                result!!.isBlank() -> "✓  ${connection.name}: connected"
+                                else           -> "✓  ${connection.name}: ${result.take(19).drop(1)}"
+                            }
+
                             isTesting = false
                             withContext(Dispatchers.IO) {
                                 connection.closeSession()
                             }
+
                             snackbarHostState.showSnackbar(
                                 message  = message,
-                                duration = SnackbarDuration.Long
+                                duration = SnackbarDuration.Short
                             )
                         }
                     }
