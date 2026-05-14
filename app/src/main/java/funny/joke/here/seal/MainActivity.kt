@@ -29,8 +29,10 @@ import androidx.compose.ui.platform.LocalContext
 import funny.joke.here.seal.data.ConnectionRepository
 import funny.joke.here.seal.ssh.SSH
 import funny.joke.here.seal.ui.AddConnectionScreen
+import funny.joke.here.seal.ui.AddServiceScreen
 import funny.joke.here.seal.ui.ServersScreen
 import funny.joke.here.seal.ui.ServicesScreen
+import funny.joke.here.seal.ui.ServicePresetUi
 import funny.joke.here.seal.ui.theme.SealTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -59,6 +61,7 @@ fun SealApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.SERVERS) }
     var connections        by remember { mutableStateOf<List<SSH>>(emptyList()) }
     var showAddConnection  by rememberSaveable { mutableStateOf(false) }
+    var selectedPreset     by remember { mutableStateOf<ServicePresetUi?>(null) }
 
     // Load saved connections from disk on first composition (background thread)
     LaunchedEffect(Unit) {
@@ -67,6 +70,10 @@ fun SealApp() {
 
     BackHandler(enabled = showAddConnection) {
         showAddConnection = false
+    }
+
+    BackHandler(enabled = selectedPreset != null) {
+        selectedPreset = null
     }
 
     if (showAddConnection) {
@@ -80,6 +87,11 @@ fun SealApp() {
                 }
             },
             onBack = { showAddConnection = false }
+        )
+    } else if (selectedPreset != null) {
+        AddServiceScreen(
+            preset = selectedPreset!!,
+            onBack = { selectedPreset = null }
         )
     } else {
         NavigationSuiteScaffold(
@@ -108,7 +120,8 @@ fun SealApp() {
                         modifier = Modifier.padding(innerPadding)
                     )
                     AppDestinations.SERVICES -> ServicesScreen(
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier.padding(innerPadding),
+                        onPresetSelected = { preset -> selectedPreset = preset }
                     )
                     AppDestinations.SETTINGS -> Text(
                         "Settings",

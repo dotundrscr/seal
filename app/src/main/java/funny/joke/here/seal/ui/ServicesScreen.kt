@@ -1,6 +1,5 @@
 package funny.joke.here.seal.ui
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,19 +11,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import funny.joke.here.seal.data.ConnectionRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.random.Random
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
@@ -32,21 +24,18 @@ private sealed class ServiceItem {
     /** The "empty" template — shown with a pencil icon, no avatar circle */
     object EmptyCompose : ServiceItem()
 
-    data class PresetSettings(val template: String, val fields: Map<String, Any>)
-
     /** A pre-built service template */
-    data class Preset(val name: String, val icon: ImageVector, val settings: PresetSettings) :
-        ServiceItem()
+    data class Preset(val ui: ServicePresetUi) : ServiceItem()
 }
 
 private val serviceList: List<ServiceItem> = buildList {
     add(ServiceItem.EmptyCompose)
     add(
         ServiceItem.Preset(
-            "Garry's Mod",
-            Icons.Default.SportsEsports,
-            ServiceItem.PresetSettings(
-                """
+            ServicePresetUi(
+                name = "Garrys Mod",
+                icon = Icons.Default.SportsEsports,
+                template = """
 services:
   whoami:
     image: traefik/whoami
@@ -54,16 +43,17 @@ services:
       - "%target%:80"
     command:
       - --name=%name%
-        """.trimIndent(), mapOf("target" to 2020, "name" to "gmod")
+                """.trimIndent(),
+                fields = mapOf("target" to 2020, "name" to "gmod")
             )
         )
     )
     add(
         ServiceItem.Preset(
-            "Hytale",
-            Icons.Default.Gamepad,
-            ServiceItem.PresetSettings(
-                """
+            ServicePresetUi(
+                name = "Hytale",
+                icon = Icons.Default.Gamepad,
+                template = """
 services:
   whoami:
     image: traefik/whoami
@@ -71,16 +61,17 @@ services:
       - "%target%:80"
     command:
       - --name=%name%
-        """.trimIndent(), mapOf("target" to 3030, "name" to "hytale")
+                """.trimIndent(),
+                fields = mapOf("target" to 3030, "name" to "hytale")
             )
         )
     )
     add(
         ServiceItem.Preset(
-            "Minecraft",
-            Icons.Default.Terrain,
-            ServiceItem.PresetSettings(
-                """
+            ServicePresetUi(
+                name = "Minecraft",
+                icon = Icons.Default.Terrain,
+                template = """
 services:
   whoami:
     image: traefik/whoami
@@ -88,16 +79,17 @@ services:
       - "%target%:80"
     command:
       - --name=%name%
-        """.trimIndent(), mapOf("target" to 4040, "name" to "minecraft")
+                """.trimIndent(),
+                fields = mapOf("target" to 4040, "name" to "minecraft")
             )
         )
     )
     add(
         ServiceItem.Preset(
-            "Nextcloud",
-            Icons.Default.Cloud,
-            ServiceItem.PresetSettings(
-                """
+            ServicePresetUi(
+                name = "Nextcloud",
+                icon = Icons.Default.Cloud,
+                template = """
 services:
   whoami:
     image: traefik/whoami
@@ -106,14 +98,16 @@ services:
     command:
       - --name=%name%
 """.trimIndent(),
-                mapOf("target" to 5050, "name" to "nextcloud")
+                fields = mapOf("target" to 5050, "name" to "nextcloud")
             )
         )
     )
     add(
         ServiceItem.Preset(
-            "PostgreSQL", Icons.Default.Storage, ServiceItem.PresetSettings(
-                """
+            ServicePresetUi(
+                name = "PostgreSQL",
+                icon = Icons.Default.Storage,
+                template = """
 services:
   whoami:
     image: traefik/whoami
@@ -121,7 +115,8 @@ services:
       - "%target%:80"
     command:
       - --name=%name%
-        """.trimIndent(), mapOf("target" to 6060, "name" to "sql")
+                """.trimIndent(),
+                fields = mapOf("target" to 6060, "name" to "sql")
             )
         )
     )
@@ -131,7 +126,10 @@ services:
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ServicesScreen(modifier: Modifier = Modifier) {
+fun ServicesScreen(
+    modifier: Modifier = Modifier,
+    onPresetSelected: (ServicePresetUi) -> Unit = {}
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -167,7 +165,7 @@ fun ServicesScreen(modifier: Modifier = Modifier) {
             items(serviceList) { item ->
                 when (item) {
                     is ServiceItem.EmptyCompose -> EmptyComposeRow()
-                    is ServiceItem.Preset -> PresetServiceRow(item, Random.nextInt(100).toString())
+                    is ServiceItem.Preset -> PresetServiceRow(item.ui, onPresetSelected)
                 }
                 HorizontalDivider(
                     modifier = Modifier.padding(start = 72.dp, end = 16.dp),
@@ -214,60 +212,14 @@ private fun EmptyComposeRow() {
 // ── Row: Preset service ───────────────────────────────────────────────────────
 
 @Composable
-private fun PresetServiceRow(preset: ServiceItem.Preset, targetFolder: String) {
-    val repository = ConnectionRepository(LocalContext.current)
-    val connections = repository.loadAll()
-    val scope = rememberCoroutineScope()
-
+private fun PresetServiceRow(
+    preset: ServicePresetUi,
+    onPresetSelected: (ServicePresetUi) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                if (connections.isNotEmpty()) {
-                    scope.launch {
-                        val targetConnection = connections[0]
-
-                        Log.i("SEAL", "filling out the template")
-
-                        var finalCompose = preset.settings.template
-
-                        preset.settings.fields.forEach { (field, value) ->
-                            finalCompose = finalCompose.replace("%$field%", value.toString())
-                        }
-
-                        Log.i("SEAL", finalCompose)
-                        Log.i("SEAL", "opening session")
-
-                        withContext(Dispatchers.IO) {
-                            if (!targetConnection.sessionActive()) {
-                                targetConnection.openSession()
-                            }
-                        }
-
-                        Log.i("SEAL", "trying to compose")
-
-                        try {
-                            withContext(Dispatchers.IO) {
-                                val result = targetConnection.runCmd(arrayOf(
-                                    $$"mkdir -p $HOME/seal/$$targetFolder/",
-                                    $$"cat << 'EOF' > $HOME/seal/$$targetFolder/compose.yml\n$$finalCompose\nEOF",
-                                    $$"docker compose -f $HOME/seal/$$targetFolder/compose.yml up -d"
-                                ))
-                                Log.i("SEAL", result)
-                            }
-                        } catch (e: Exception) {
-                            SnackbarHostState().showSnackbar(
-                                e.toString(),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                        Log.i("SEAL", "closing session")
-                        withContext(Dispatchers.IO) {
-                            targetConnection.closeSession()
-                        }
-                    }
-                }
-            }
+            .clickable { onPresetSelected(preset) }
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
