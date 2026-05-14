@@ -1,6 +1,7 @@
 package funny.joke.here.seal.ssh;
 
 import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.ChannelShell;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
@@ -10,7 +11,10 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -113,14 +117,29 @@ public final class SSH {
         session = null;
     }
 
-    public String runCmd(String command) throws JSchException, IOException {
-        ChannelExec channel;
+    public boolean sessionActive() {
+        return session != null;
+    }
+
+    public String runCmd(String[] commands) throws JSchException, IOException {
+        ChannelShell channel;
         BufferedReader reader;
 
-        channel = (ChannelExec) session.openChannel("exec");
-        channel.setCommand(command);
-        reader = new BufferedReader(new InputStreamReader(channel.getInputStream()));
+        channel = (ChannelShell) session.openChannel("shell");
+
+        InputStream in = channel.getInputStream();
+        OutputStream out = channel.getOutputStream();
+
         channel.connect();
+
+        PrintStream commander = new PrintStream(out, true);
+
+        for (String command : commands) {
+            commander.println(command);
+        }
+        commander.println("exit");
+
+        reader = new BufferedReader(new InputStreamReader(in));
 
         String result = reader.lines().collect(Collectors.joining("\n"));
 
