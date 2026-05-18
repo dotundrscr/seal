@@ -73,14 +73,36 @@ services:
                 icon = Icons.Default.Terrain,
                 template = """
 services:
-  whoami:
-    image: traefik/whoami
+  minecraft:
+    container_name: minecraft
+    image: 'itzg/minecraft-server'
+    tty: true
+    stdin_open: true
+    restart: unless-stopped
     ports:
-      - "%target%:80"
-    command:
-      - --name=%name%
-                """.trimIndent(),
-                fields = mapOf("target" to 4040, "name" to "minecraft")
+      - "%port%:25565"
+    environment:
+      EULA: 'TRUE'
+      TYPE: %type%
+      VERSION: %version%
+      MEMORY: %mem%
+      MAX_PLAYERS: %players%
+      MOTD: "%motd%"
+      REGION_FILE_COMPRESSION: lz4
+      JVM_XX_OPTS: '-XX:+UseZGC -XX:+ZGenerational'
+      ENABLE_ROLLING_LOGS: 'true'
+      ONLINE_MODE: '%online%'
+    volumes:
+      - './data:/data'""".trimIndent(),
+                fields = mapOf(
+                    "port" to 25565,
+                    "type" to "VANILLA",
+                    "version" to "26.1.2",
+                    "mem" to "2048M",
+                    "players" to "20",
+                    "motd" to "A Minecraft server",
+                    "online" to "TRUE"
+                )
             )
         )
     )
