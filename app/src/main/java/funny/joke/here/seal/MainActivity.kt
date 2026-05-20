@@ -33,6 +33,7 @@ import funny.joke.here.seal.ui.AddServiceScreen
 import funny.joke.here.seal.ui.ServersScreen
 import funny.joke.here.seal.ui.ServicesScreen
 import funny.joke.here.seal.ui.ServicePresetUi
+import funny.joke.here.seal.ui.DeployedService
 import funny.joke.here.seal.ui.theme.SealTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,6 +63,8 @@ fun SealApp() {
     var connections        by remember { mutableStateOf<List<SSH>>(emptyList()) }
     var showAddConnection  by rememberSaveable { mutableStateOf(false) }
     var selectedPreset     by remember { mutableStateOf<ServicePresetUi?>(null) }
+    var selectedCustomCompose by rememberSaveable { mutableStateOf(false) }
+    var editingService     by remember { mutableStateOf<DeployedService?>(null) }
 
     // Load saved connections from disk on first composition (background thread)
     LaunchedEffect(Unit) {
@@ -88,10 +91,16 @@ fun SealApp() {
             },
             onBack = { showAddConnection = false }
         )
-    } else if (selectedPreset != null) {
+    } else if (selectedPreset != null || selectedCustomCompose || editingService != null) {
         AddServiceScreen(
-            preset = selectedPreset!!,
-            onBack = { selectedPreset = null }
+            preset = selectedPreset,
+            editingService = editingService,
+            connections = connections,
+            onBack = {
+                selectedPreset = null
+                selectedCustomCompose = false
+                editingService = null
+            }
         )
     } else {
         NavigationSuiteScaffold(
@@ -120,8 +129,11 @@ fun SealApp() {
                         modifier = Modifier.padding(innerPadding)
                     )
                     AppDestinations.SERVICES -> ServicesScreen(
+                        connections = connections,
                         modifier = Modifier.padding(innerPadding),
-                        onPresetSelected = { preset -> selectedPreset = preset }
+                        onPresetSelected = { preset -> selectedPreset = preset },
+                        onCustomComposeSelected = { selectedCustomCompose = true },
+                        onEditService = { service -> editingService = service }
                     )
                     AppDestinations.SETTINGS -> Text(
                         "Settings",

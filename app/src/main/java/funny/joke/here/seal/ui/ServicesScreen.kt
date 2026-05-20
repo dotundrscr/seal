@@ -1,12 +1,15 @@
 package funny.joke.here.seal.ui
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
@@ -19,148 +22,360 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import funny.joke.here.seal.ssh.SSH
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
-// ── Data model ────────────────────────────────────────────────────────────────
+// ── Data models ──────────────────────────────────────────────────────────────
 
-private sealed class ServiceItem {
-    /** A pre-built service template */
-    data class Preset(val ui: ServicePresetUi) : ServiceItem()
+data class DockerContainer(
+    val id: String,
+    val names: String,
+    val image: String,
+    val state: String,
+    val status: String,
+    val ports: String,
+    val labels: String = "",
+    val composeFolderName: String? = null,
+    val composeContent: String? = null,
+    val presetName: String? = null
+)
+
+data class DeployedContainer(
+    val server: SSH,
+    val container: DockerContainer
+)
+
+/** Kept for backward compatibility with MainActivity navigation and edit hooks */
+data class DeployedService(
+    val server: SSH,
+    val folderName: String,
+    val composeContent: String,
+    val state: String,         // "running" | "stopped" | "paused" etc.
+    val status: String,        // e.g. "Up 2 hours"
+    val ports: String,
+    val containers: List<DockerContainer>,
+    val presetName: String?    // Detected preset name if any
+)
+
+sealed class ServicesLoadState {
+    object Idle : ServicesLoadState()
+    object Loading : ServicesLoadState()
+    data class Success(val containers: List<DeployedContainer>) : ServicesLoadState()
+    data class Error(val message: String) : ServicesLoadState()
 }
 
-private val serviceList: List<ServiceItem> = buildList {
-    add(
-        ServiceItem.Preset(
-            ServicePresetUi(
-                name = "Garrys Mod",
-                icon = Icons.Default.SportsEsports,
-                template = """
-services:
-  whoami:
-    image: traefik/whoami
-    ports:
-      - "%target%:80"
-    command:
-      - --name=%name%
-                """.trimIndent(),
-                fields = mapOf("target" to 2020, "name" to "gmod")
-            )
+// ── Presets static list ──────────────────────────────────────────────────────
+
+val servicePresets: List<ServicePresetUi> = listOf(
+    ServicePresetUi(
+        name = "Garrys Mod",
+        icon = Icons.Default.SportsEsports,
+        template = """
+        services:
+          whoami:
+            image: traefik/whoami
+            ports:
+              - "%target%:80"
+            command:
+              - --name=%name%
+        """.trimIndent(),
+        fields = mapOf("target" to 2020, "name" to "gmod")
+    ),
+    ServicePresetUi(
+        name = "Hytale",
+        icon = Icons.Default.Gamepad,
+        template = """
+        services:
+          whoami:
+            image: traefik/whoami
+            ports:
+              - "%target%:80"
+            command:
+              - --name=%name%
+        """.trimIndent(),
+        fields = mapOf("target" to 3030, "name" to "hytale")
+    ),
+    ServicePresetUi(
+        name = "Minecraft",
+        icon = Icons.Default.Terrain,
+        template = """
+        services:
+          minecraft:
+            container_name: minecraft
+            image: 'itzg/minecraft-server'
+            tty: true
+            stdin_open: true
+            restart: unless-stopped
+            ports:
+              - "%port%:25565"
+            environment:
+              EULA: 'TRUE'
+              TYPE: %type%
+              VERSION: %version%
+              MEMORY: %mem%
+              MAX_PLAYERS: %players%
+              MOTD: "%motd%"
+              REGION_FILE_COMPRESSION: lz4
+              JVM_XX_OPTS: '-XX:+UseZGC -XX:+ZGenerational'
+              ENABLE_ROLLING_LOGS: 'true'
+              ONLINE_MODE: '%online%'
+            volumes:
+              - './data:/data'""".trimIndent(),
+        fields = mapOf(
+            "port" to 25565,
+            "type" to "VANILLA",
+            "version" to "26.1.2",
+            "mem" to "2048M",
+            "players" to "20",
+            "motd" to "A Minecraft server",
+            "online" to "TRUE"
         )
+    ),
+    ServicePresetUi(
+        name = "Nextcloud",
+        icon = Icons.Default.Cloud,
+        template = """
+        services:
+          whoami:
+            image: traefik/whoami
+            ports:
+              - "%target%:80"
+            command:
+              - --name=%name%
+        """.trimIndent(),
+        fields = mapOf("target" to 5050, "name" to "nextcloud")
+    ),
+    ServicePresetUi(
+        name = "PostgreSQL",
+        icon = Icons.Default.Storage,
+        template = """
+        services:
+          whoami:
+            image: traefik/whoami
+            ports:
+              - "%target%:80"
+            command:
+              - --name=%name%
+        """.trimIndent(),
+        fields = mapOf("target" to 6060, "name" to "sql")
     )
-    add(
-        ServiceItem.Preset(
-            ServicePresetUi(
-                name = "Hytale",
-                icon = Icons.Default.Gamepad,
-                template = """
-services:
-  whoami:
-    image: traefik/whoami
-    ports:
-      - "%target%:80"
-    command:
-      - --name=%name%
-                """.trimIndent(),
-                fields = mapOf("target" to 3030, "name" to "hytale")
-            )
-        )
-    )
-    add(
-        ServiceItem.Preset(
-            ServicePresetUi(
-                name = "Minecraft",
-                icon = Icons.Default.Terrain,
-                template = """
-services:
-  minecraft:
-    container_name: minecraft
-    image: 'itzg/minecraft-server'
-    tty: true
-    stdin_open: true
-    restart: unless-stopped
-    ports:
-      - "%port%:25565"
-    environment:
-      EULA: 'TRUE'
-      TYPE: %type%
-      VERSION: %version%
-      MEMORY: %mem%
-      MAX_PLAYERS: %players%
-      MOTD: "%motd%"
-      REGION_FILE_COMPRESSION: lz4
-      JVM_XX_OPTS: '-XX:+UseZGC -XX:+ZGenerational'
-      ENABLE_ROLLING_LOGS: 'true'
-      ONLINE_MODE: '%online%'
-    volumes:
-      - './data:/data'""".trimIndent(),
-                fields = mapOf(
-                    "port" to 25565,
-                    "type" to "VANILLA",
-                    "version" to "26.1.2",
-                    "mem" to "2048M",
-                    "players" to "20",
-                    "motd" to "A Minecraft server",
-                    "online" to "TRUE"
+)
+
+// ── SSH Services & Containers Parser ─────────────────────────────────────────
+
+private suspend fun fetchServicesFromServer(server: SSH): List<DeployedContainer> {
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            if (!server.sessionActive()) {
+                server.openSession()
+            }
+            // Elegant single SSH roundtrip querying both ~/seal compose directories and all system docker containers
+            val raw = server.runCmd(
+                arrayOf(
+                    "if [ -d ~/seal ]; then",
+                    "  for d in ~/seal/*/; do",
+                    "    if [ -f \"\$d/compose.yml\" ] || [ -f \"\$d/docker-compose.yml\" ]; then",
+                    "      echo \"=== DIR: \$(basename \"\$d\") ===\"",
+                    "      if [ -f \"\$d/compose.yml\" ]; then cat \"\$d/compose.yml\"; else cat \"\$d/docker-compose.yml\"; fi",
+                    "      echo \"=== END ===\"",
+                    "    fi",
+                    "  done",
+                    "fi",
+                    "echo \"=== ALL PS ===\"",
+                    "docker ps -a --format json",
+                    "echo \"=== ALL PS END ===\""
                 )
             )
-        )
-    )
-    add(
-        ServiceItem.Preset(
-            ServicePresetUi(
-                name = "Nextcloud",
-                icon = Icons.Default.Cloud,
-                template = """
-services:
-  whoami:
-    image: traefik/whoami
-    ports:
-      - "%target%:80"
-    command:
-      - --name=%name%
-""".trimIndent(),
-                fields = mapOf("target" to 5050, "name" to "nextcloud")
-            )
-        )
-    )
-    add(
-        ServiceItem.Preset(
-            ServicePresetUi(
-                name = "PostgreSQL",
-                icon = Icons.Default.Storage,
-                template = """
-services:
-  whoami:
-    image: traefik/whoami
-    ports:
-      - "%target%:80"
-    command:
-      - --name=%name%
-                """.trimIndent(),
-                fields = mapOf("target" to 6060, "name" to "sql")
-            )
-        )
-    )
+            server.closeSession()
+            parseDeployedContainers(server, raw)
+        }.getOrElse { e ->
+            runCatching { server.closeSession() }
+            emptyList()
+        }
+    }
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+private fun parseDeployedContainers(server: SSH, raw: String): List<DeployedContainer> {
+    // 1. Parse compose configurations under ~/seal/
+    val composeProjects = mutableMapOf<String, String>() // folderName -> composeContent
+    val composeSections = raw.split("=== DIR: ")
+    for (sec in composeSections) {
+        if (sec.isBlank()) continue
+        val firstLineEnd = sec.indexOf(" ===")
+        if (firstLineEnd == -1) continue
+        val folderName = sec.substring(0, firstLineEnd).trim()
+        
+        // Skip echoed commands or headers
+        if (folderName.contains("$") || folderName.contains("(") || folderName.contains(")") || folderName.contains("basename") || folderName.contains("&")) {
+            continue
+        }
+        
+        val rest = sec.substring(firstLineEnd + 4)
+        val endIndex = rest.indexOf("=== END ===")
+        val composeContent = if (endIndex != -1) {
+            rest.substring(0, endIndex).trim()
+        } else {
+            rest.trim()
+        }
+        composeProjects[folderName] = composeContent
+    }
+
+    // 2. Locate the "=== ALL PS ===" section
+    val psStartIndex = raw.indexOf("=== ALL PS ===")
+    val psEndIndex = raw.indexOf("=== ALL PS END ===")
+    val psContent = if (psStartIndex != -1) {
+        if (psEndIndex != -1) {
+            raw.substring(psStartIndex + 14, psEndIndex).trim()
+        } else {
+            raw.substring(psStartIndex + 14).trim()
+        }
+    } else {
+        ""
+    }
+
+    // 3. Parse all containers
+    val containersList = mutableListOf<DeployedContainer>()
+    psContent.lines().map { it.trim() }.filter { it.startsWith("{") && it.endsWith("}") }.forEach { line ->
+        runCatching {
+            val obj = JSONObject(line)
+            val id = obj.optString("ID", obj.optString("Id", "?"))
+            val names = obj.optString("Names", obj.optString("Name", "?"))
+            val image = obj.optString("Image", "?")
+            val state = obj.optString("State", "unknown").lowercase()
+            val status = obj.optString("Status", "")
+            val ports = obj.optString("Ports", "")
+            val labels = obj.optString("Labels", "")
+
+            // Match with compose configurations
+            var matchedFolder: String? = null
+            var matchedCompose: String? = null
+            
+            // Try to find a match in the compose folders
+            val cleanName = names.trimStart('/')
+            for ((folder, compose) in composeProjects) {
+                val hasProjectLabel = labels.contains("com.docker.compose.project=$folder") || 
+                                     (labels.contains("com.docker.compose.project.working_dir=") && labels.contains("/$folder"))
+                if (hasProjectLabel || cleanName.startsWith("${folder}-") || cleanName == folder) {
+                    matchedFolder = folder
+                    matchedCompose = compose
+                    break
+                }
+            }
+
+            val presetName = matchedCompose?.let { detectPreset(it) }
+
+            containersList.add(
+                DeployedContainer(
+                    server = server,
+                    container = DockerContainer(
+                        id = id,
+                        names = names,
+                        image = image,
+                        state = state,
+                        status = status,
+                        ports = ports,
+                        labels = labels,
+                        composeFolderName = matchedFolder,
+                        composeContent = matchedCompose,
+                        presetName = presetName
+                    )
+                )
+            )
+        }
+    }
+    return containersList
+}
+
+@Composable
+private fun containerStateColor(state: String): Color {
+    return when (state) {
+        "running" -> Color(0xFF4CAF50)
+        "paused"  -> Color(0xFFFFC107)
+        "exited", "stopped" -> Color(0xFFF44336)
+        else      -> Color(0xFF9E9E9E)
+    }
+}
+
+// ── Screen: ServicesScreen ─────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServicesScreen(
+    connections: List<SSH>,
     modifier: Modifier = Modifier,
-    onPresetSelected: (ServicePresetUi) -> Unit = {},
-    onEmptyComposeCreate: (name: String, composeYml: String) -> Unit = { _, _ -> }
+    onPresetSelected: (ServicePresetUi) -> Unit,
+    onCustomComposeSelected: () -> Unit,
+    onEditService: (DeployedService) -> Unit
 ) {
-    var showCreateDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var loadState by remember { mutableStateOf<ServicesLoadState>(ServicesLoadState.Idle) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var selectedContainerForDetails by remember { mutableStateOf<DeployedContainer?>(null) }
 
-    if (showCreateDialog) {
-        CreateEmptyComposeDialog(
-            onDismiss = { showCreateDialog = false },
-            onCreate = { name, yml ->
-                showCreateDialog = false
-                onEmptyComposeCreate(name, yml)
+    val refreshServices = {
+        loadState = ServicesLoadState.Loading
+        scope.launch {
+            if (connections.isEmpty()) {
+                loadState = ServicesLoadState.Success(emptyList())
+            } else {
+                val allContainers = mutableListOf<DeployedContainer>()
+                connections.forEach { conn ->
+                    allContainers += fetchServicesFromServer(conn)
+                }
+                loadState = ServicesLoadState.Success(allContainers)
+            }
+        }
+    }
+
+    // Refresh lists on load or configuration change
+    LaunchedEffect(connections) {
+        refreshServices()
+    }
+
+    if (showAddDialog) {
+        AddServiceChoiceDialog(
+            onDismiss = { showAddDialog = false },
+            onPresetClick = { preset ->
+                showAddDialog = false
+                onPresetSelected(preset)
+            },
+            onCustomComposeClick = {
+                showAddDialog = false
+                onCustomComposeSelected()
+            }
+        )
+    }
+
+    // Container Management Dialog
+    if (selectedContainerForDetails != null) {
+        ServiceDetailsDialog(
+            deployed = selectedContainerForDetails!!,
+            onDismiss = { selectedContainerForDetails = null },
+            onEditClick = { dep ->
+                selectedContainerForDetails = null
+                // Reconstruct DeployedService for backward compatibility with AddServiceScreen
+                val svc = DeployedService(
+                    server = dep.server,
+                    folderName = dep.container.composeFolderName!!,
+                    composeContent = dep.container.composeContent!!,
+                    state = dep.container.state,
+                    status = dep.container.status,
+                    ports = dep.container.ports,
+                    containers = listOf(dep.container),
+                    presetName = dep.container.presetName
+                )
+                onEditService(svc)
+            },
+            onOperationSuccess = {
+                refreshServices()
             }
         )
     }
@@ -168,7 +383,24 @@ fun ServicesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {},          // title rendered in the list header
+                title = {
+                    Text(
+                        text = "Сервисы",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                actions = {
+                    IconButton(
+                        onClick = { refreshServices() },
+                        enabled = loadState !is ServicesLoadState.Loading
+                    ) {
+                        if (loadState is ServicesLoadState.Loading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh services")
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -176,121 +408,265 @@ fun ServicesScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showCreateDialog = true },
+                onClick = { showAddDialog = true },
                 shape = RoundedCornerShape(16.dp),
-                containerColor = Color(0xFFE8DEF8),
-                contentColor = Color(0xFF1D1B20),
-                modifier = Modifier.size(56.dp)
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "New container",
+                    contentDescription = "New service",
                     modifier = Modifier.size(28.dp)
                 )
             }
         },
         modifier = modifier
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-
-            // ── "Add services" heading ────────────────────────────────────────
-            item {
-                Text(
-                    text = "Добавить сервис",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    modifier = Modifier.padding(
-                        start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp
-                    )
-                )
-            }
-
-            // ── Service rows ──────────────────────────────────────────────────
-            items(serviceList) { item ->
-                when (item) {
-                    is ServiceItem.Preset -> PresetServiceRow(item.ui, onPresetSelected)
-                }
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 72.dp, end = 16.dp),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
-        }
-    }
-}
-
-// EmptyComposeRow removed — replaced by FAB in ServicesScreen
-
-// ── Row: Preset service ───────────────────────────────────────────────────────
-
-@Composable
-private fun PresetServiceRow(
-    preset: ServicePresetUi,
-    onPresetSelected: (ServicePresetUi) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onPresetSelected(preset) }
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Circular avatar with icon
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .padding(padding)
         ) {
+            when (val state = loadState) {
+                is ServicesLoadState.Idle, is ServicesLoadState.Loading -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Сканирование серверов...", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+
+                is ServicesLoadState.Error -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.height(10.dp))
+                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+
+                is ServicesLoadState.Success -> {
+                    if (connections.isEmpty()) {
+                        EmptyServicesState(
+                            hasServers = false,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            connections.forEach { conn ->
+                                val serverContainers = state.containers.filter { it.server.id == conn.id }
+                                
+                                // Server Header: "Server Name (IP)"
+                                item(key = "hdr_${conn.id}") {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = "${conn.name.uppercase()} (${conn.host})",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(top = 4.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                                
+                                if (serverContainers.isEmpty()) {
+                                    item(key = "empty_${conn.id}") {
+                                        Text(
+                                            text = "Нет установленных контейнеров Docker",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                } else {
+                                    items(serverContainers, key = { "svc_${it.server.id}_${it.container.id}" }) { deployed ->
+                                        ContainerCard(
+                                            deployed = deployed,
+                                            onClick = { selectedContainerForDetails = deployed }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Card: Docker Container Card ──────────────────────────────────────────────
+
+@Composable
+private fun ContainerCard(
+    deployed: DeployedContainer,
+    onClick: () -> Unit
+) {
+    val container = deployed.container
+    val stateColor = containerStateColor(container.state)
+
+    val matchedPreset = servicePresets.firstOrNull { it.name == container.presetName }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar Icon representing Preset, Compose, or Standalone Docker
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                val icon = when {
+                    matchedPreset != null -> matchedPreset.icon
+                    container.composeFolderName != null -> Icons.Default.Code
+                    else -> Icons.Default.Dns
+                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = container.names.trimStart('/'),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    // State dot
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(stateColor)
+                    )
+                }
+
+                Text(
+                    text = when {
+                        container.presetName != null -> "Шаблон: ${container.presetName}"
+                        container.composeFolderName != null -> "Compose: ${container.composeFolderName}"
+                        else -> "Standalone Container"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+
+                Text(
+                    text = container.image,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (container.ports.isNotBlank()) {
+                    Text(
+                        text = container.ports,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
             Icon(
-                imageVector = preset.icon,
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(14.dp)
             )
         }
+    }
+}
 
-        Spacer(Modifier.width(14.dp))
+// ── Empty State ──────────────────────────────────────────────────────────────
 
-        Text(
-            text = preset.name,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-
+@Composable
+private fun EmptyServicesState(
+    hasServers: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            Icons.Default.Layers,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(72.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+        )
+        Text(
+            text = if (hasServers) "Нет установленных контейнеров" else "Нет добавленных серверов",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = if (hasServers) "Нажмите + чтобы развернуть новый сервис в папке ~/seal/" 
+                   else "Сначала добавьте сервер в меню Серверы",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
     }
 }
 
-// ── Dialog: Create empty compose ──────────────────────────────────────────────
+// ── Dialog: AddServiceChoiceDialog ──────────────────────────────────────────
 
 @Composable
-private fun CreateEmptyComposeDialog(
+private fun AddServiceChoiceDialog(
     onDismiss: () -> Unit,
-    onCreate: (name: String, composeYml: String) -> Unit
+    onPresetClick: (ServicePresetUi) -> Unit,
+    onCustomComposeClick: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var composeYml by remember { mutableStateOf("") }
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -299,56 +675,381 @@ private fun CreateEmptyComposeDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Новый контейнер",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold
-                    )
+                    text = "Добавить сервис",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Название") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                // List of presets
+                servicePresets.forEach { preset ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onPresetClick(preset) }
+                            .padding(vertical = 10.dp, horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = preset.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(preset.name, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
 
-                OutlinedTextField(
-                    value = composeYml,
-                    onValueChange = { composeYml = it },
-                    label = { Text("compose.yml") },
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Custom compose row
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 200.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    textStyle = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace
-                    ),
-                    maxLines = 20
-                )
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onCustomComposeClick() }
+                        .padding(vertical = 10.dp, horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Code,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = "Свой контейнер (compose.yml)",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
                         Text("Отмена")
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { onCreate(name, composeYml) },
-                        enabled = name.isNotBlank() && composeYml.isNotBlank(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Создать")
                     }
                 }
             }
         }
     }
 }
+
+// ── Dialog: ServiceDetailsDialog (Management + Logs) ───────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ServiceDetailsDialog(
+    deployed: DeployedContainer,
+    onDismiss: () -> Unit,
+    onEditClick: (DeployedContainer) -> Unit,
+    onOperationSuccess: () -> Unit
+) {
+    val container = deployed.container
+    val server = deployed.server
+    val isCompose = container.composeFolderName != null
+
+    val scope = rememberCoroutineScope()
+    var logs by remember { mutableStateOf("Загрузка логов...") }
+    var isOperating by remember { mutableStateOf(false) }
+    var operationError by remember { mutableStateOf<String?>(null) }
+    val logsScrollState = rememberScrollState()
+
+    val fetchLogs = {
+        scope.launch {
+            logs = "Загрузка логов..."
+            logs = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!server.sessionActive()) {
+                        server.openSession()
+                    }
+                    val output = if (isCompose) {
+                        server.runCmd(
+                            arrayOf(
+                                "cd ~/seal/${container.composeFolderName}",
+                                "docker compose logs --tail=100 || docker-compose logs --tail=100"
+                            )
+                        )
+                    } else {
+                        server.runCmd(
+                            arrayOf(
+                                "docker logs --tail=100 ${container.id}"
+                            )
+                        )
+                    }
+                    server.closeSession()
+                    if (output.isBlank()) "Логов пока нет или контейнер не запущен" else output
+                }.getOrElse { e ->
+                    runCatching { server.closeSession() }
+                    "Ошибка получения логов: ${e.message}"
+                }
+            }
+        }
+    }
+
+    val runContainerCommand = { cmdArray: Array<String> ->
+        scope.launch {
+            isOperating = true
+            operationError = null
+            val success = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!server.sessionActive()) {
+                        server.openSession()
+                    }
+                    server.runCmd(cmdArray)
+                    server.closeSession()
+                    true
+                }.getOrElse { e ->
+                    runCatching { server.closeSession() }
+                    operationError = e.message
+                    false
+                }
+            }
+            isOperating = false
+            if (success) {
+                onOperationSuccess()
+                fetchLogs()
+            }
+        }
+    }
+
+    // Auto load logs once dialog opens
+    LaunchedEffect(Unit) {
+        fetchLogs()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = container.names.trimStart('/'),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    },
+                    actions = {
+                        if (isCompose) {
+                            IconButton(onClick = { onEditClick(deployed) }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit Service Settings")
+                            }
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Info block
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Сервер: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text("${server.name} (${server.host})", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Образ: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(container.image, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("ID: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(container.id.take(12), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        }
+                        if (isCompose) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Папка: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text("~/seal/${container.composeFolderName}", fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Статус: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(container.state.uppercase(), fontWeight = FontWeight.SemiBold, color = containerStateColor(container.state))
+                        }
+                        if (container.status.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Uptime: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(container.status, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+
+                // Power actions (Вкл/выкл)
+                Text("Управление контейнером", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+
+                if (isOperating) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val startCmd = if (isCompose) {
+                        arrayOf("cd ~/seal/${container.composeFolderName}", "docker compose up -d || docker-compose up -d")
+                    } else {
+                        arrayOf("docker start ${container.id}")
+                    }
+                    Button(
+                        onClick = { runContainerCommand(startCmd) },
+                        enabled = !isOperating,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Включить")
+                    }
+
+                    val stopCmd = if (isCompose) {
+                        arrayOf("cd ~/seal/${container.composeFolderName}", "docker compose stop || docker-compose stop || docker compose down || docker-compose down")
+                    } else {
+                        arrayOf("docker stop ${container.id}")
+                    }
+                    Button(
+                        onClick = { runContainerCommand(stopCmd) },
+                        enabled = !isOperating,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Выключить")
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val restartCmd = if (isCompose) {
+                        arrayOf("cd ~/seal/${container.composeFolderName}", "docker compose restart || docker-compose restart")
+                    } else {
+                        arrayOf("docker restart ${container.id}")
+                    }
+                    OutlinedButton(
+                        onClick = { runContainerCommand(restartCmd) },
+                        enabled = !isOperating,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Перезапустить")
+                    }
+
+                    val deleteCmd = if (isCompose) {
+                        arrayOf(
+                            "cd ~/seal/${container.composeFolderName}",
+                            "docker compose down || docker-compose down",
+                            "cd .. && rm -rf ${container.composeFolderName}"
+                        )
+                    } else {
+                        arrayOf("docker rm -f ${container.id}")
+                    }
+                    OutlinedButton(
+                        onClick = { runContainerCommand(deleteCmd) },
+                        enabled = !isOperating,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Удалить")
+                    }
+                }
+
+                if (operationError != null) {
+                    Text(operationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+
+                // Logs display
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Логи контейнера", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = { fetchLogs() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh logs")
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF1E1E1E),
+                    tonalElevation = 2.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .verticalScroll(logsScrollState)
+                    ) {
+                        Text(
+                            text = logs,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                                color = Color(0xFFE0E0E0)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun Modifier.size(size: Int) = size(size.dp)

@@ -122,31 +122,32 @@ public final class SSH {
     }
 
     public String runCmd(String[] commands) throws JSchException, IOException {
-        ChannelShell channel;
-        BufferedReader reader;
-
-        channel = (ChannelShell) session.openChannel("shell");
+        ChannelExec channel = (ChannelExec) session.openChannel("exec");
+        String commandString = String.join("\n", commands);
+        channel.setCommand(commandString);
 
         InputStream in = channel.getInputStream();
-        OutputStream out = channel.getOutputStream();
+        InputStream err = channel.getErrStream();
 
         channel.connect();
 
-        PrintStream commander = new PrintStream(out, true);
-
-        for (String command : commands) {
-            commander.println(command);
-        }
-        commander.println("exit");
-
-        reader = new BufferedReader(new InputStreamReader(in));
-
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
         String result = reader.lines().collect(Collectors.joining("\n"));
 
+        BufferedReader errReader = new BufferedReader(new InputStreamReader(err));
+        String errResult = errReader.lines().collect(Collectors.joining("\n"));
+
         channel.disconnect();
-
         reader.close();
+        errReader.close();
 
+        if (!errResult.isEmpty()) {
+            if (result.isEmpty()) {
+                return errResult;
+            } else {
+                return result + "\n" + errResult;
+            }
+        }
         return result;
     }
 
