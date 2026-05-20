@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import funny.joke.here.seal.ssh.SSH
@@ -779,6 +783,7 @@ private fun ServiceDetailsDialog(
     var isOperating by remember { mutableStateOf(false) }
     var operationError by remember { mutableStateOf<String?>(null) }
     val logsScrollState = rememberScrollState()
+    var showConsole by remember { mutableStateOf(false) }
 
     val fetchLogs = {
         scope.launch {
@@ -1011,6 +1016,22 @@ private fun ServiceDetailsDialog(
                     Text(operationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
+                if (container.presetName == "Minecraft") {
+                    Button(
+                        onClick = { showConsole = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(Icons.Default.Code, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Открыть игровую консоль (Minecraft)")
+                    }
+                }
+
                 // Logs display
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1045,6 +1066,290 @@ private fun ServiceDetailsDialog(
                                 color = Color(0xFFE0E0E0)
                             )
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showConsole) {
+        MinecraftConsoleDialog(
+            deployed = deployed,
+            onDismiss = { showConsole = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MinecraftConsoleDialog(
+    deployed: DeployedContainer,
+    onDismiss: () -> Unit
+) {
+    val container = deployed.container
+    val server = deployed.server
+    val scope = rememberCoroutineScope()
+    
+    var consoleLogs by remember { mutableStateOf("Подключение к консоли сервера...\n") }
+    var commandInput by remember { mutableStateOf("") }
+    var isSendingCommand by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var autoRefresh by remember { mutableStateOf(true) }
+    
+    val terminalScrollState = rememberScrollState()
+    
+    LaunchedEffect(consoleLogs) {
+        terminalScrollState.scrollTo(terminalScrollState.maxValue)
+    }
+    
+    val fetchLogs = suspend {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                if (!server.sessionActive()) {
+                    server.openSession()
+                }
+                val output = server.runCmd(arrayOf("docker logs --tail=150 ${container.id}"))
+                server.closeSession()
+                output
+            }
+        }.onSuccess { output ->
+            if (output.isNotBlank()) {
+                consoleLogs = output
+            } else {
+                consoleLogs = "Логи пока пусты или контейнер еще не начал запись."
+            }
+        }.onFailure { e ->
+            consoleLogs = "Ошибка получения логов: ${e.message}\n"
+        }
+    }
+    
+    LaunchedEffect(autoRefresh) {
+        while (autoRefresh) {
+            fetchLogs()
+            kotlinx.coroutines.delay(3000)
+        }
+    }
+    
+    val sendCommand = {
+        val cmd = commandInput.trim()
+        if (cmd.isNotEmpty()) {
+            scope.launch {
+                isSendingCommand = true
+                commandInput = ""
+                
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        if (!server.sessionActive()) {
+                            server.openSession()
+                        }
+                        val escapedCmd = cmd.replace("\"", "\\\"").replace("`", "\\`")
+                        server.runCmd(arrayOf(
+                            "docker exec -i ${container.id} rcon-cli \"$escapedCmd\" || docker exec -i ${container.id} mc-send-to-console \"$escapedCmd\""
+                        ))
+                        server.closeSession()
+                        
+                        if (!server.sessionActive()) {
+                            server.openSession()
+                        }
+                        val updatedLogs = server.runCmd(arrayOf("docker logs --tail=150 ${container.id}"))
+                        server.closeSession()
+                        
+                        withContext(Dispatchers.Main) {
+                            if (updatedLogs.isNotBlank()) {
+                                consoleLogs = updatedLogs
+                            }
+                        }
+                    }
+                }
+                isSendingCommand = false
+            }
+        }
+    }
+    
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "Игровая консоль",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF00FF87)
+                            )
+                            Text(
+                                text = "${container.names.trimStart('/')} @ ${server.name}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                        }
+                    },
+                    actions = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = "Авто",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Switch(
+                                checked = autoRefresh,
+                                onCheckedChange = { autoRefresh = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color(0xFF00FF87),
+                                    checkedTrackColor = Color(0xFF00FF87).copy(alpha = 0.5f),
+                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedTrackColor = Color.DarkGray
+                                )
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    isRefreshing = true
+                                    fetchLogs()
+                                    isRefreshing = false
+                                }
+                            },
+                            enabled = !isRefreshing
+                        ) {
+                            if (isRefreshing) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF00FF87))
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh console", tint = Color.White)
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color(0xFF161720)
+                    )
+                )
+            },
+            containerColor = Color(0xFF0F1015)
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(Color(0xFF08090C), shape = RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(terminalScrollState)
+                    ) {
+                        Text(
+                            text = consoleLogs,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                                color = Color(0xFF00FF87)
+                            )
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = ">",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00FF87)
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    
+                    OutlinedTextField(
+                        value = commandInput,
+                        onValueChange = { commandInput = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = {
+                            Text(
+                                text = "Введите команду...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.3f)
+                            )
+                        },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = Color(0xFF00FF87)
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Send
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSend = { sendCommand() }
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00FF87),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                            cursorColor = Color(0xFF00FF87),
+                            focusedContainerColor = Color(0xFF1A1D26),
+                            unfocusedContainerColor = Color(0xFF1A1D26)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = {
+                            if (commandInput.isNotEmpty()) {
+                                IconButton(onClick = { commandInput = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear command",
+                                        tint = Color.White.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                    
+                    Spacer(Modifier.width(8.dp))
+                    
+                    FloatingActionButton(
+                        onClick = { sendCommand() },
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        containerColor = Color(0xFF00FF87),
+                        contentColor = Color(0xFF0F1015),
+                        elevation = FloatingActionButtonDefaults.elevation(0.dp)
+                    ) {
+                        if (isSendingCommand) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF0F1015)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send Command",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
