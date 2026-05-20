@@ -6,30 +6,30 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
 private sealed class ServiceItem {
-    /** The "empty" template — shown with a pencil icon, no avatar circle */
-    object EmptyCompose : ServiceItem()
-
     /** A pre-built service template */
     data class Preset(val ui: ServicePresetUi) : ServiceItem()
 }
 
 private val serviceList: List<ServiceItem> = buildList {
-    add(ServiceItem.EmptyCompose)
     add(
         ServiceItem.Preset(
             ServicePresetUi(
@@ -150,8 +150,21 @@ services:
 @Composable
 fun ServicesScreen(
     modifier: Modifier = Modifier,
-    onPresetSelected: (ServicePresetUi) -> Unit = {}
+    onPresetSelected: (ServicePresetUi) -> Unit = {},
+    onEmptyComposeCreate: (name: String, composeYml: String) -> Unit = { _, _ -> }
 ) {
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    if (showCreateDialog) {
+        CreateEmptyComposeDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { name, yml ->
+                showCreateDialog = false
+                onEmptyComposeCreate(name, yml)
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -160,6 +173,21 @@ fun ServicesScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showCreateDialog = true },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = Color(0xFFE8DEF8),
+                contentColor = Color(0xFF1D1B20),
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "New container",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         },
         modifier = modifier
     ) { padding ->
@@ -186,7 +214,6 @@ fun ServicesScreen(
             // ── Service rows ──────────────────────────────────────────────────
             items(serviceList) { item ->
                 when (item) {
-                    is ServiceItem.EmptyCompose -> EmptyComposeRow()
                     is ServiceItem.Preset -> PresetServiceRow(item.ui, onPresetSelected)
                 }
                 HorizontalDivider(
@@ -199,37 +226,7 @@ fun ServicesScreen(
     }
 }
 
-// ── Row: Empty Docker Compose ─────────────────────────────────────────────────
-
-@Composable
-private fun EmptyComposeRow() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {}
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Edit,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(Modifier.width(18.dp))
-        Text(
-            text = "Empty Docker Compose",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.size(14.dp)
-        )
-    }
-}
+// EmptyComposeRow removed — replaced by FAB in ServicesScreen
 
 // ── Row: Preset service ───────────────────────────────────────────────────────
 
@@ -275,5 +272,83 @@ private fun PresetServiceRow(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(14.dp)
         )
+    }
+}
+
+// ── Dialog: Create empty compose ──────────────────────────────────────────────
+
+@Composable
+private fun CreateEmptyComposeDialog(
+    onDismiss: () -> Unit,
+    onCreate: (name: String, composeYml: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var composeYml by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Новый контейнер",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = composeYml,
+                    onValueChange = { composeYml = it },
+                    label = { Text("compose.yml") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    maxLines = 20
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Отмена")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { onCreate(name, composeYml) },
+                        enabled = name.isNotBlank() && composeYml.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Создать")
+                    }
+                }
+            }
+        }
     }
 }
