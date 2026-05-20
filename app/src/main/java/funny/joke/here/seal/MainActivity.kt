@@ -8,9 +8,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -139,7 +142,10 @@ fun SealApp() {
             navigationSuiteItems = {
                 AppDestinations.entries.forEach { dest ->
                     item(
-                        icon     = { Icon(dest.icon, contentDescription = stringResource(dest.labelRes)) },
+                        icon     = { 
+                            val icon = if (dest == currentDestination) dest.selectedIcon else dest.unselectedIcon
+                            Icon(icon, contentDescription = stringResource(dest.labelRes)) 
+                        },
                         label    = { Text(stringResource(dest.labelRes)) },
                         selected = dest == currentDestination,
                         onClick  = { currentDestination = dest }
@@ -187,9 +193,10 @@ fun SealApp() {
 
 enum class AppDestinations(
     val labelRes: Int,
-    val icon: ImageVector,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
 ) {
-    SERVICES(R.string.nav_services, Icons.Default.Home),
-    SERVERS(R.string.nav_servers,   Icons.Default.Storage),
-    SETTINGS(R.string.nav_settings, Icons.Default.Settings),
+    SERVICES(R.string.nav_services, Icons.Filled.GridView, Icons.Outlined.GridView),
+    SERVERS(R.string.nav_servers,   Icons.Filled.Storage,  Icons.Outlined.Storage),
+    SETTINGS(R.string.nav_settings, Icons.Filled.Settings, Icons.Outlined.Settings),
 }

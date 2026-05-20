@@ -5,7 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -68,7 +68,7 @@ fun ServersScreen(
                 .padding(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.Rounded.Add,
                 contentDescription = stringResource(R.string.servers_add_description),
                 modifier = Modifier.size(28.dp)
             )
@@ -84,7 +84,7 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Icon(
-            Icons.Default.Storage,
+            Icons.Rounded.Storage,
             contentDescription = null,
             modifier = Modifier.size(72.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
@@ -124,7 +124,7 @@ fun ConnectionCard(
         ) {
             // Server icon
             Icon(
-                Icons.Default.Computer,
+                Icons.Rounded.Computer,
                 contentDescription = null,
                 modifier = Modifier.size(40.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -245,7 +245,7 @@ fun ConnectionCard(
                     )
                 } else {
                     Icon(
-                        Icons.Default.PlayArrow,
+                        Icons.Rounded.PlayArrow,
                         contentDescription = "Test connection",
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -255,7 +255,7 @@ fun ConnectionCard(
             // ── Delete button ───────────────────────────────────────────────
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(
-                    Icons.Default.Delete,
+                    Icons.Rounded.Delete,
                     contentDescription = stringResource(R.string.servers_delete_confirm),
                     tint = MaterialTheme.colorScheme.error
                 )
@@ -267,7 +267,7 @@ fun ConnectionCard(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            icon = { Icon(Icons.Default.Delete, contentDescription = null) },
+            icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
             title = { Text(stringResource(R.string.servers_delete_title)) },
             text  = { Text(stringResource(R.string.servers_delete_text, connection.name)) },
             confirmButton = {

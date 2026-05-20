@@ -13,13 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -179,7 +174,7 @@ fun AddServiceScreen(
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 title = {
@@ -218,7 +213,7 @@ fun AddServiceScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = preset?.icon ?: Icons.Default.Settings,
+                        imageVector = preset?.icon ?: Icons.Rounded.Settings,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp)
@@ -268,7 +263,7 @@ fun AddServiceScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Icon(
-                            Icons.Default.Storage,
+                            Icons.Rounded.Storage,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -288,7 +283,7 @@ fun AddServiceScreen(
                         }
                         if (!isEditMode && connections.size > 1) {
                             Icon(
-                                Icons.Default.ArrowDropDown,
+                                Icons.Rounded.ArrowDropDown,
                                 contentDescription = "Select Server",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -327,7 +322,7 @@ fun AddServiceScreen(
                 hint = stringResource(R.string.add_svc_folder_hint),
                 value = targetFolder,
                 onValueChange = { if (!isEditMode) targetFolder = it },
-                leadingIcon = Icons.Default.Folder,
+                leadingIcon = Icons.Rounded.Folder,
                 enabled = !isEditMode
             )
 
@@ -450,7 +445,7 @@ fun AddServiceScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            Icons.Rounded.Close,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.size(18.dp)
@@ -554,7 +549,7 @@ fun AddServiceScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (isDeploying) stringResource(R.string.add_svc_btn_deploying) else if (deploySuccess) stringResource(R.string.add_svc_btn_done) else if (isEditMode) stringResource(R.string.add_svc_btn_save) else stringResource(R.string.add_svc_btn_run),
@@ -596,7 +591,7 @@ private fun ServiceTextField(
                 if (enabled && value.isNotEmpty()) {
                     IconButton(onClick = { onValueChange("") }) {
                         Icon(
-                            Icons.Default.Close,
+                            Icons.Rounded.Close,
                             contentDescription = "Clear",
                             modifier = Modifier.size(18.dp)
                         )

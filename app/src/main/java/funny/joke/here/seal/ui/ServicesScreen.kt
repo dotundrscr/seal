@@ -11,9 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -83,7 +83,7 @@ sealed class ServicesLoadState {
 val servicePresets: List<ServicePresetUi> = listOf(
     ServicePresetUi(
         name = "Garrys Mod",
-        icon = Icons.Default.SportsEsports,
+        icon = Icons.Rounded.SportsEsports,
         template = """
         services:
           whoami:
@@ -97,7 +97,7 @@ val servicePresets: List<ServicePresetUi> = listOf(
     ),
     ServicePresetUi(
         name = "Hytale",
-        icon = Icons.Default.Gamepad,
+        icon = Icons.Rounded.Gamepad,
         template = """
         services:
           whoami:
@@ -111,7 +111,7 @@ val servicePresets: List<ServicePresetUi> = listOf(
     ),
     ServicePresetUi(
         name = "Minecraft",
-        icon = Icons.Default.Terrain,
+        icon = Icons.Rounded.Terrain,
         template = """
         services:
           minecraft:
@@ -147,7 +147,7 @@ val servicePresets: List<ServicePresetUi> = listOf(
     ),
     ServicePresetUi(
         name = "Nextcloud",
-        icon = Icons.Default.Cloud,
+        icon = Icons.Rounded.Cloud,
         template = """
         services:
           whoami:
@@ -161,7 +161,7 @@ val servicePresets: List<ServicePresetUi> = listOf(
     ),
     ServicePresetUi(
         name = "PostgreSQL",
-        icon = Icons.Default.Storage,
+        icon = Icons.Rounded.Storage,
         template = """
         services:
           whoami:
@@ -403,7 +403,7 @@ fun ServicesScreen(
                         if (loadState is ServicesLoadState.Loading) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.services_refresh))
+                            Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.services_refresh))
                         }
                     }
                 },
@@ -420,7 +420,7 @@ fun ServicesScreen(
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.Rounded.Add,
                     contentDescription = stringResource(R.string.services_new),
                     modifier = Modifier.size(28.dp)
                 )
@@ -450,7 +450,7 @@ fun ServicesScreen(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.height(10.dp))
                         Text(state.message, color = MaterialTheme.colorScheme.error)
                     }
@@ -550,8 +550,8 @@ private fun ContainerCard(
             ) {
                 val icon = when {
                     matchedPreset != null -> matchedPreset.icon
-                    container.composeFolderName != null -> Icons.Default.Code
-                    else -> Icons.Default.Dns
+                    container.composeFolderName != null -> Icons.Rounded.Code
+                    else -> Icons.Rounded.Dns
                 }
                 Icon(
                     imageVector = icon,
@@ -618,7 +618,7 @@ private fun ContainerCard(
             Spacer(Modifier.width(8.dp))
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                 modifier = Modifier.size(14.dp)
@@ -640,7 +640,7 @@ private fun EmptyServicesState(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Icon(
-            Icons.Default.Layers,
+            Icons.Rounded.Layers,
             contentDescription = null,
             modifier = Modifier.size(72.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
@@ -738,7 +738,7 @@ private fun AddServiceChoiceDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Code,
+                            imageVector = Icons.Rounded.Code,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(18.dp)
@@ -869,13 +869,13 @@ private fun ServiceDetailsDialog(
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Rounded.Close, contentDescription = "Close")
                         }
                     },
                     actions = {
                         if (isCompose) {
                             IconButton(onClick = { onEditClick(deployed) }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit Service Settings")
+                                Icon(Icons.Rounded.Edit, contentDescription = "Edit Service Settings")
                             }
                         }
                     }
@@ -953,7 +953,7 @@ private fun ServiceDetailsDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.details_btn_start))
                     }
@@ -970,7 +970,7 @@ private fun ServiceDetailsDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Stop, contentDescription = null)
+                        Icon(Icons.Rounded.Stop, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.details_btn_stop))
                     }
@@ -991,7 +991,7 @@ private fun ServiceDetailsDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Icon(Icons.Rounded.Refresh, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.details_btn_restart))
                     }
@@ -1012,7 +1012,7 @@ private fun ServiceDetailsDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Icon(Icons.Rounded.Delete, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.details_btn_delete))
                     }
@@ -1032,7 +1032,7 @@ private fun ServiceDetailsDialog(
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     ) {
-                        Icon(Icons.Default.Code, contentDescription = null)
+                        Icon(Icons.Rounded.Code, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.details_btn_console))
                     }
@@ -1046,7 +1046,7 @@ private fun ServiceDetailsDialog(
                 ) {
                     Text(stringResource(R.string.details_logs_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     IconButton(onClick = { fetchLogs() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh logs")
+                        Icon(Icons.Rounded.Refresh, contentDescription = "Refresh logs")
                     }
                 }
 
@@ -1198,7 +1198,7 @@ private fun MinecraftConsoleDialog(
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Rounded.Close, contentDescription = "Close")
                         }
                     },
                     actions = {
@@ -1229,7 +1229,7 @@ private fun MinecraftConsoleDialog(
                             if (isRefreshing) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                             } else {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh console")
+                                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh console")
                             }
                         }
                     }
@@ -1308,7 +1308,7 @@ private fun MinecraftConsoleDialog(
                             if (commandInput.isNotEmpty()) {
                                 IconButton(onClick = { commandInput = "" }) {
                                     Icon(
-                                        imageVector = Icons.Default.Close,
+                                        imageVector = Icons.Rounded.Close,
                                         contentDescription = "Clear command"
                                     )
                                 }
@@ -1333,7 +1333,7 @@ private fun MinecraftConsoleDialog(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                imageVector = Icons.AutoMirrored.Rounded.Send,
                                 contentDescription = "Send Command",
                                 modifier = Modifier.size(20.dp)
                             )
