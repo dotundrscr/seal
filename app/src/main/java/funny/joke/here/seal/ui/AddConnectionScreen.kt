@@ -10,8 +10,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
+import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,7 +36,7 @@ fun AddConnectionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New Connection") },
+                title = { Text(stringResource(R.string.add_conn_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -55,31 +57,31 @@ fun AddConnectionScreen(
         ) {
 
             // ── General ──────────────────────────────────────────────────────
-            SectionLabel("General")
+            SectionLabel(stringResource(R.string.add_conn_section_general))
 
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it; nameError = false },
-                label = { Text("Connection name") },
-                placeholder = { Text("My Home Server") },
+                label = { Text(stringResource(R.string.add_conn_name_label)) },
+                placeholder = { Text(stringResource(R.string.add_conn_name_placeholder)) },
                 leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) },
                 isError = nameError,
-                supportingText = { if (nameError) Text("Name is required") },
+                supportingText = { if (nameError) Text(stringResource(R.string.add_conn_name_error)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
             // ── SSH ───────────────────────────────────────────────────────────
-            SectionLabel("SSH")
+            SectionLabel(stringResource(R.string.add_conn_section_ssh))
 
             OutlinedTextField(
                 value = host,
                 onValueChange = { host = it; hostError = false },
-                label = { Text("Host / IP address") },
+                label = { Text(stringResource(R.string.add_conn_host_label)) },
                 placeholder = { Text("192.168.1.100") },
                 leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null) },
                 isError = hostError,
-                supportingText = { if (hostError) Text("Host is required") },
+                supportingText = { if (hostError) Text(stringResource(R.string.add_conn_host_error)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth()
@@ -88,7 +90,7 @@ fun AddConnectionScreen(
             OutlinedTextField(
                 value = port,
                 onValueChange = { port = it },
-                label = { Text("Port") },
+                label = { Text(stringResource(R.string.add_conn_port_label)) },
                 placeholder = { Text("22") },
                 leadingIcon = { Icon(Icons.Default.SettingsEthernet, contentDescription = null) },
                 singleLine = true,
@@ -97,16 +99,16 @@ fun AddConnectionScreen(
             )
 
             // ── Auth ──────────────────────────────────────────────────────────
-            SectionLabel("Authentication")
+            SectionLabel(stringResource(R.string.add_conn_section_auth))
 
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it; usernameError = false },
-                label = { Text("Username") },
+                label = { Text(stringResource(R.string.add_conn_user_label)) },
                 placeholder = { Text("root") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 isError = usernameError,
-                supportingText = { if (usernameError) Text("Username is required") },
+                supportingText = { if (usernameError) Text(stringResource(R.string.add_conn_user_error)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -114,7 +116,7 @@ fun AddConnectionScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.add_conn_password_label)) },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -160,7 +162,7 @@ fun AddConnectionScreen(
             ) {
                 Icon(Icons.Default.Save, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Save connection")
+                Text(stringResource(R.string.add_conn_save))
             }
 
             Spacer(Modifier.height(16.dp))

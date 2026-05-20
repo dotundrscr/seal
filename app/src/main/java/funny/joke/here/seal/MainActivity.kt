@@ -1,7 +1,7 @@
 package funny.joke.here.seal
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -25,7 +25,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import funny.joke.here.seal.data.ConnectionRepository
 import funny.joke.here.seal.ssh.SSH
 import funny.joke.here.seal.ui.AddConnectionScreen
@@ -34,14 +38,21 @@ import funny.joke.here.seal.ui.ServersScreen
 import funny.joke.here.seal.ui.ServicesScreen
 import funny.joke.here.seal.ui.ServicePresetUi
 import funny.joke.here.seal.ui.DeployedService
+import funny.joke.here.seal.ui.SettingsScreen
 import funny.joke.here.seal.ui.theme.SealTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Default to Dark theme if not set
+        if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_UNSPECIFIED) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        }
+
         enableEdgeToEdge()
         setContent {
             SealTheme {
@@ -65,6 +76,27 @@ fun SealApp() {
     var selectedPreset     by remember { mutableStateOf<ServicePresetUi?>(null) }
     var selectedCustomCompose by rememberSaveable { mutableStateOf(false) }
     var editingService     by remember { mutableStateOf<DeployedService?>(null) }
+
+    val currentTheme = AppCompatDelegate.getDefaultNightMode().let { mode ->
+        if (mode == AppCompatDelegate.MODE_NIGHT_UNSPECIFIED) AppCompatDelegate.MODE_NIGHT_YES else mode
+    }
+
+    val configuration = LocalConfiguration.current
+    val currentLocale = remember(configuration) {
+        val locales = AppCompatDelegate.getApplicationLocales()
+        if (!locales.isEmpty) {
+            locales.get(0)?.language ?: "ru"
+        } else {
+            configuration.locales[0].language
+        }
+    }
+
+    // Set default language to Russian if not set
+    LaunchedEffect(Unit) {
+        if (AppCompatDelegate.getApplicationLocales().isEmpty) {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("ru"))
+        }
+    }
 
     // Load saved connections from disk on first composition (background thread)
     LaunchedEffect(Unit) {
@@ -107,8 +139,8 @@ fun SealApp() {
             navigationSuiteItems = {
                 AppDestinations.entries.forEach { dest ->
                     item(
-                        icon     = { Icon(dest.icon, contentDescription = dest.label) },
-                        label    = { Text(dest.label) },
+                        icon     = { Icon(dest.icon, contentDescription = stringResource(dest.labelRes)) },
+                        label    = { Text(stringResource(dest.labelRes)) },
                         selected = dest == currentDestination,
                         onClick  = { currentDestination = dest }
                     )
@@ -135,8 +167,16 @@ fun SealApp() {
                         onCustomComposeSelected = { selectedCustomCompose = true },
                         onEditService = { service -> editingService = service }
                     )
-                    AppDestinations.SETTINGS -> Text(
-                        "Settings",
+                    AppDestinations.SETTINGS -> SettingsScreen(
+                        currentLanguage = currentLocale,
+                        onLanguageSelected = { lang ->
+                            val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(lang)
+                            AppCompatDelegate.setApplicationLocales(appLocale)
+                        },
+                        currentTheme = currentTheme,
+                        onThemeSelected = { mode ->
+                            AppCompatDelegate.setDefaultNightMode(mode)
+                        },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -146,10 +186,10 @@ fun SealApp() {
 }
 
 enum class AppDestinations(
-    val label: String,
+    val labelRes: Int,
     val icon: ImageVector,
 ) {
-    SERVICES("Services", Icons.Default.Home),
-    SERVERS("Servers",   Icons.Default.Storage),
-    SETTINGS("Settings", Icons.Default.Settings),
+    SERVICES(R.string.nav_services, Icons.Default.Home),
+    SERVERS(R.string.nav_servers,   Icons.Default.Storage),
+    SETTINGS(R.string.nav_settings, Icons.Default.Settings),
 }

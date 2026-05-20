@@ -1,0 +1,89 @@
+<resources>
+    <string name="app_name">seal</string>
+    <string name="nav_services">Services</string>
+    <string name="nav_servers">Servers</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="settings_language">Language</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_light">Light</string>
+
+    <string name="servers_empty_title">No servers yet</string>
+    <string name="servers_empty_subtitle">Tap + to add your first server</string>
+    <string name="servers_add_description">Add server</string>
+    <string name="servers_delete_title">Remove server?</string>
+    <string name="servers_delete_text">\"%1$s\" will be permanently removed.</string>
+    <string name="servers_delete_confirm">Remove</string>
+    <string name="servers_cancel">Cancel</string>
+
+    <string name="services_title">Services</string>
+    <string name="services_refresh">Refresh services</string>
+    <string name="services_new">New service</string>
+    <string name="services_scanning">Scanning servers...</string>
+    <string name="services_no_containers">No Docker containers installed</string>
+    <string name="services_empty_no_containers">No containers installed</string>
+    <string name="services_empty_no_servers">No servers added</string>
+    <string name="services_empty_hint_deploy">Tap + to deploy a new service in ~/seal/ folder</string>
+    <string name="services_empty_hint_add_server">First add a server in the Servers menu</string>
+    <string name="services_add_title">Add Service</string>
+    <string name="services_custom_compose">Custom container (compose.yml)</string>
+    <string name="services_template">Template: %1$s</string>
+
+    <string name="details_loading_logs">Loading logs...</string>
+    <string name="details_no_logs">No logs yet or container is not running</string>
+    <string name="details_error_logs">Error fetching logs: %1$s</string>
+    <string name="details_info_server">Server: </string>
+    <string name="details_info_image">Image: </string>
+    <string name="details_info_id">ID: </string>
+    <string name="details_info_folder">Folder: </string>
+    <string name="details_info_status">Status: </string>
+    <string name="details_info_uptime">Uptime: </string>
+    <string name="details_mgmt_title">Container Management</string>
+    <string name="details_btn_start">Start</string>
+    <string name="details_btn_stop">Stop</string>
+    <string name="details_btn_restart">Restart</string>
+    <string name="details_btn_delete">Remove</string>
+    <string name="details_btn_console">Open Game Console (Minecraft)</string>
+    <string name="details_logs_title">Container Logs</string>
+
+    <string name="console_title">Game Console</string>
+    <string name="console_auto">Auto</string>
+    <string name="console_connecting">Connecting to server console...\n</string>
+    <string name="console_empty">Logs are empty or container has not started recording yet.</string>
+    <string name="console_error">Error fetching logs: %1$s\n</string>
+    <string name="console_placeholder">Enter command...</string>
+
+    <string name="add_conn_title">New Connection</string>
+    <string name="add_conn_section_general">General</string>
+    <string name="add_conn_name_label">Connection name</string>
+    <string name="add_conn_name_placeholder">My Home Server</string>
+    <string name="add_conn_name_error">Name is required</string>
+    <string name="add_conn_section_ssh">SSH</string>
+    <string name="add_conn_host_label">Host / IP address</string>
+    <string name="add_conn_port_label">Port</string>
+    <string name="add_conn_host_error">Host is required</string>
+    <string name="add_conn_section_auth">Authentication</string>
+    <string name="add_conn_user_label">Username</string>
+    <string name="add_conn_user_error">Username is required</string>
+    <string name="add_conn_password_label">Password</string>
+    <string name="add_conn_save">Save connection</string>
+
+    <string name="add_svc_edit_title">Service Settings</string>
+    <string name="add_svc_add_title">Add Service</string>
+    <string name="add_svc_custom">Custom Container</string>
+    <string name="add_svc_edit_mode">Edit Mode</string>
+    <string name="add_svc_server_title">Target Server</string>
+    <string name="add_svc_server_none">Server not selected</string>
+    <string name="add_svc_folder_label">Target Folder</string>
+    <string name="add_svc_folder_hint">Folder inside ~/seal/ on the server</string>
+    <string name="add_svc_compose_label">compose.yml content</string>
+    <string name="add_svc_log_title">Deployment Log</string>
+    <string name="add_svc_err_no_server">Server not selected.</string>
+    <string name="add_svc_err_select_server">Select a server.</string>
+    <string name="add_svc_btn_deploying">Deploying…</string>
+    <string name="add_svc_btn_done">Done!</string>
+    <string name="add_svc_btn_save">Save Changes</string>
+    <string name="add_svc_btn_run">Run</string>
+</resources>

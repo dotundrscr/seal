@@ -3,14 +3,17 @@ package funny.joke.here.seal.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -57,11 +60,18 @@ fun ServersScreen(
 
         FloatingActionButton(
             onClick = onAddClick,
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Add server")
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = stringResource(R.string.servers_add_description),
+                modifier = Modifier.size(28.dp)
+            )
         }
     }
 }
@@ -80,12 +90,12 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         )
         Text(
-            "No servers yet",
+            stringResource(R.string.servers_empty_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            "Tap + to add your first server",
+            stringResource(R.string.servers_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
@@ -246,7 +256,7 @@ fun ConnectionCard(
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.servers_delete_confirm),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -258,18 +268,18 @@ fun ConnectionCard(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Remove server?") },
-            text  = { Text("\"${connection.name}\" will be permanently removed.") },
+            title = { Text(stringResource(R.string.servers_delete_title)) },
+            text  = { Text(stringResource(R.string.servers_delete_text, connection.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     onDelete(connection.id)
                     showDeleteDialog = false
                 }) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.servers_delete_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.servers_cancel)) }
             }
         )
     }

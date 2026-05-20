@@ -28,9 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -389,7 +391,7 @@ fun ServicesScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Сервисы",
+                        text = stringResource(R.string.services_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -401,7 +403,7 @@ fun ServicesScreen(
                         if (loadState is ServicesLoadState.Loading) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh services")
+                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.services_refresh))
                         }
                     }
                 },
@@ -419,7 +421,7 @@ fun ServicesScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "New service",
+                    contentDescription = stringResource(R.string.services_new),
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -439,7 +441,7 @@ fun ServicesScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CircularProgressIndicator()
-                        Text("Сканирование серверов...", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.services_scanning), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
@@ -491,7 +493,7 @@ fun ServicesScreen(
                                 if (serverContainers.isEmpty()) {
                                     item(key = "empty_${conn.id}") {
                                         Text(
-                                            text = "Нет установленных контейнеров Docker",
+                                            text = stringResource(R.string.services_no_containers),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
@@ -582,7 +584,7 @@ private fun ContainerCard(
 
                 Text(
                     text = when {
-                        container.presetName != null -> "Шаблон: ${container.presetName}"
+                        container.presetName != null -> stringResource(R.string.services_template, container.presetName)
                         container.composeFolderName != null -> "Compose: ${container.composeFolderName}"
                         else -> "Standalone Container"
                     },
@@ -644,13 +646,13 @@ private fun EmptyServicesState(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         )
         Text(
-            text = if (hasServers) "Нет установленных контейнеров" else "Нет добавленных серверов",
+            text = if (hasServers) stringResource(R.string.services_empty_no_containers) else stringResource(R.string.services_empty_no_servers),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = if (hasServers) "Нажмите + чтобы развернуть новый сервис в папке ~/seal/" 
-                   else "Сначала добавьте сервер в меню Серверы",
+            text = if (hasServers) stringResource(R.string.services_empty_hint_deploy) 
+                   else stringResource(R.string.services_empty_hint_add_server),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
@@ -682,7 +684,7 @@ private fun AddServiceChoiceDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Добавить сервис",
+                    text = stringResource(R.string.services_add_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -743,7 +745,7 @@ private fun AddServiceChoiceDialog(
                         )
                     }
                     Text(
-                        text = "Свой контейнер (compose.yml)",
+                        text = stringResource(R.string.services_custom_compose),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -756,7 +758,7 @@ private fun AddServiceChoiceDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Отмена")
+                        Text(stringResource(R.string.servers_cancel))
                     }
                 }
             }
@@ -779,15 +781,19 @@ private fun ServiceDetailsDialog(
     val isCompose = container.composeFolderName != null
 
     val scope = rememberCoroutineScope()
-    var logs by remember { mutableStateOf("Загрузка логов...") }
+    val loadingLogsStr = stringResource(R.string.details_loading_logs)
+    var logs by remember { mutableStateOf(loadingLogsStr) }
     var isOperating by remember { mutableStateOf(false) }
     var operationError by remember { mutableStateOf<String?>(null) }
     val logsScrollState = rememberScrollState()
     var showConsole by remember { mutableStateOf(false) }
+    
+    val noLogsStr = stringResource(R.string.details_no_logs)
+    val errorLogsStr = stringResource(R.string.details_error_logs)
 
     val fetchLogs = {
         scope.launch {
-            logs = "Загрузка логов..."
+            logs = loadingLogsStr
             logs = withContext(Dispatchers.IO) {
                 runCatching {
                     if (!server.sessionActive()) {
@@ -808,10 +814,10 @@ private fun ServiceDetailsDialog(
                         )
                     }
                     server.closeSession()
-                    if (output.isBlank()) "Логов пока нет или контейнер не запущен" else output
+                    if (output.isBlank()) noLogsStr else output
                 }.getOrElse { e ->
                     runCatching { server.closeSession() }
-                    "Ошибка получения логов: ${e.message}"
+                    errorLogsStr.format(e.message)
                 }
             }
         }
@@ -894,30 +900,30 @@ private fun ServiceDetailsDialog(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Сервер: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.details_info_server), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                             Text("${server.name} (${server.host})", style = MaterialTheme.typography.bodyMedium)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Образ: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.details_info_image), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                             Text(container.image, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("ID: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.details_info_id), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                             Text(container.id.take(12), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                         }
                         if (isCompose) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Папка: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.details_info_folder), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                 Text("~/seal/${container.composeFolderName}", fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                             }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Статус: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.details_info_status), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                             Text(container.state.uppercase(), fontWeight = FontWeight.SemiBold, color = containerStateColor(container.state))
                         }
                         if (container.status.isNotBlank()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Uptime: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.details_info_uptime), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                 Text(container.status, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
@@ -925,7 +931,7 @@ private fun ServiceDetailsDialog(
                 }
 
                 // Power actions (Вкл/выкл)
-                Text("Управление контейнером", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.details_mgmt_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
 
                 if (isOperating) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -949,7 +955,7 @@ private fun ServiceDetailsDialog(
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("Включить")
+                        Text(stringResource(R.string.details_btn_start))
                     }
 
                     val stopCmd = if (isCompose) {
@@ -966,7 +972,7 @@ private fun ServiceDetailsDialog(
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("Выключить")
+                        Text(stringResource(R.string.details_btn_stop))
                     }
                 }
 
@@ -987,7 +993,7 @@ private fun ServiceDetailsDialog(
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("Перезапустить")
+                        Text(stringResource(R.string.details_btn_restart))
                     }
 
                     val deleteCmd = if (isCompose) {
@@ -1008,7 +1014,7 @@ private fun ServiceDetailsDialog(
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("Удалить")
+                        Text(stringResource(R.string.details_btn_delete))
                     }
                 }
 
@@ -1028,7 +1034,7 @@ private fun ServiceDetailsDialog(
                     ) {
                         Icon(Icons.Default.Code, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Открыть игровую консоль (Minecraft)")
+                        Text(stringResource(R.string.details_btn_console))
                     }
                 }
 
@@ -1038,7 +1044,7 @@ private fun ServiceDetailsDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Логи контейнера", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.details_logs_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     IconButton(onClick = { fetchLogs() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh logs")
                     }
@@ -1055,7 +1061,7 @@ private fun ServiceDetailsDialog(
                     Column(
                         modifier = Modifier
                             .padding(12.dp)
-                            .verticalScroll(logsScrollState)
+                            .verticalScroll(rememberScrollState())
                     ) {
                         Text(
                             text = logs,
@@ -1090,7 +1096,8 @@ private fun MinecraftConsoleDialog(
     val server = deployed.server
     val scope = rememberCoroutineScope()
     
-    var consoleLogs by remember { mutableStateOf("Подключение к консоли сервера...\n") }
+    val connectingStr = stringResource(R.string.console_connecting)
+    var consoleLogs by remember { mutableStateOf(connectingStr) }
     var commandInput by remember { mutableStateOf("") }
     var isSendingCommand by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
@@ -1098,6 +1105,9 @@ private fun MinecraftConsoleDialog(
     
     val terminalScrollState = rememberScrollState()
     
+    val emptyLogsStr = stringResource(R.string.console_empty)
+    val errorLogsStr = stringResource(R.string.console_error)
+
     LaunchedEffect(consoleLogs) {
         terminalScrollState.scrollTo(terminalScrollState.maxValue)
     }
@@ -1116,10 +1126,10 @@ private fun MinecraftConsoleDialog(
             if (output.isNotBlank()) {
                 consoleLogs = output
             } else {
-                consoleLogs = "Логи пока пусты или контейнер еще не начал запись."
+                consoleLogs = emptyLogsStr
             }
         }.onFailure { e ->
-            consoleLogs = "Ошибка получения логов: ${e.message}\n"
+            consoleLogs = errorLogsStr.format(e.message)
         }
     }
     
@@ -1176,20 +1186,19 @@ private fun MinecraftConsoleDialog(
                     title = {
                         Column {
                             Text(
-                                text = "Игровая консоль",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF00FF87)
+                                text = stringResource(R.string.console_title),
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
                                 text = "${container.names.trimStart('/')} @ ${server.name}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                            Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     },
                     actions = {
@@ -1198,20 +1207,13 @@ private fun MinecraftConsoleDialog(
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Text(
-                                text = "Авто",
+                                text = stringResource(R.string.console_auto),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.8f),
                                 modifier = Modifier.padding(end = 4.dp)
                             )
                             Switch(
                                 checked = autoRefresh,
-                                onCheckedChange = { autoRefresh = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color(0xFF00FF87),
-                                    checkedTrackColor = Color(0xFF00FF87).copy(alpha = 0.5f),
-                                    uncheckedThumbColor = Color.Gray,
-                                    uncheckedTrackColor = Color.DarkGray
-                                )
+                                onCheckedChange = { autoRefresh = it }
                             )
                         }
                         IconButton(
@@ -1225,18 +1227,14 @@ private fun MinecraftConsoleDialog(
                             enabled = !isRefreshing
                         ) {
                             if (isRefreshing) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF00FF87))
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                             } else {
-                                Icon(Icons.Default.Refresh, contentDescription = "Refresh console", tint = Color.White)
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh console")
                             }
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF161720)
-                    )
+                    }
                 )
-            },
-            containerColor = Color(0xFF0F1015)
+            }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
@@ -1244,16 +1242,18 @@ private fun MinecraftConsoleDialog(
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                Box(
+                Surface(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .background(Color(0xFF08090C), shape = RoundedCornerShape(12.dp))
-                        .padding(12.dp)
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    tonalElevation = 2.dp
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .padding(12.dp)
                             .verticalScroll(terminalScrollState)
                     ) {
                         Text(
@@ -1261,8 +1261,7 @@ private fun MinecraftConsoleDialog(
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
-                                lineHeight = 16.sp,
-                                color = Color(0xFF00FF87)
+                                lineHeight = 16.sp
                             )
                         )
                     }
@@ -1279,7 +1278,7 @@ private fun MinecraftConsoleDialog(
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00FF87)
+                            color = MaterialTheme.colorScheme.primary
                         ),
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
@@ -1290,14 +1289,12 @@ private fun MinecraftConsoleDialog(
                         modifier = Modifier.weight(1f),
                         placeholder = {
                             Text(
-                                text = "Введите команду...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.3f)
+                                text = stringResource(R.string.console_placeholder),
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         },
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF00FF87)
+                            fontFamily = FontFamily.Monospace
                         ),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
@@ -1306,21 +1303,13 @@ private fun MinecraftConsoleDialog(
                         keyboardActions = KeyboardActions(
                             onSend = { sendCommand() }
                         ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF00FF87),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                            cursorColor = Color(0xFF00FF87),
-                            focusedContainerColor = Color(0xFF1A1D26),
-                            unfocusedContainerColor = Color(0xFF1A1D26)
-                        ),
                         shape = RoundedCornerShape(12.dp),
                         trailingIcon = {
                             if (commandInput.isNotEmpty()) {
                                 IconButton(onClick = { commandInput = "" }) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear command",
-                                        tint = Color.White.copy(alpha = 0.5f)
+                                        contentDescription = "Clear command"
                                     )
                                 }
                             }
@@ -1333,15 +1322,14 @@ private fun MinecraftConsoleDialog(
                         onClick = { sendCommand() },
                         modifier = Modifier.size(48.dp),
                         shape = RoundedCornerShape(12.dp),
-                        containerColor = Color(0xFF00FF87),
-                        contentColor = Color(0xFF0F1015),
-                        elevation = FloatingActionButtonDefaults.elevation(0.dp)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp)
                     ) {
                         if (isSendingCommand) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = Color(0xFF0F1015)
+                                strokeWidth = 2.dp
                             )
                         } else {
                             Icon(
@@ -1356,5 +1344,3 @@ private fun MinecraftConsoleDialog(
         }
     }
 }
-
-private fun Modifier.size(size: Int) = size(size.dp)

@@ -28,17 +28,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// ── Data exposed to callers ───────────────────────────────────────────────────
+// ── Data models ───────────────────────────────────────────────────────────────
 
 data class ServicePresetUi(
     val name: String,
@@ -182,7 +184,7 @@ fun AddServiceScreen(
                 },
                 title = {
                     Text(
-                        if (isEditMode) "Настройки сервиса" else "Добавить сервис",
+                        if (isEditMode) stringResource(R.string.add_svc_edit_title) else stringResource(R.string.add_svc_add_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -224,12 +226,12 @@ fun AddServiceScreen(
                 }
                 Column {
                     Text(
-                        text = preset?.name ?: "Свой контейнер",
+                        text = preset?.name ?: stringResource(R.string.add_svc_custom),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
                     )
                     if (isEditMode) {
                         Text(
-                            text = "Режим редактирования",
+                            text = stringResource(R.string.add_svc_edit_mode),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -247,7 +249,7 @@ fun AddServiceScreen(
                     .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Целевой сервер",
+                    text = stringResource(R.string.add_svc_server_title),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 6.dp)
@@ -272,7 +274,7 @@ fun AddServiceScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = selectedServer?.name ?: "Сервер не выбран",
+                                text = selectedServer?.name ?: stringResource(R.string.add_svc_server_none),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium
                             )
@@ -321,8 +323,8 @@ fun AddServiceScreen(
 
             // ── targetFolder field ────────────────────────────────────────────
             ServiceTextField(
-                label = "Target Folder",
-                hint = "Папка внутри ~/seal/ на сервере",
+                label = stringResource(R.string.add_svc_folder_label),
+                hint = stringResource(R.string.add_svc_folder_hint),
                 value = targetFolder,
                 onValueChange = { if (!isEditMode) targetFolder = it },
                 leadingIcon = Icons.Default.Folder,
@@ -354,7 +356,7 @@ fun AddServiceScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Содержимое compose.yml",
+                        text = stringResource(R.string.add_svc_compose_label),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.padding(bottom = 6.dp)
@@ -386,7 +388,7 @@ fun AddServiceScreen(
                         .padding(horizontal = 20.dp)
                 ) {
                     Text(
-                        "Лог деплоя",
+                        stringResource(R.string.add_svc_log_title),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 6.dp)
@@ -464,6 +466,9 @@ fun AddServiceScreen(
             }
 
             // ── Finish button ─────────────────────────────────────────────────
+            val errNoServer = stringResource(R.string.add_svc_err_no_server)
+            val errSelectServer = stringResource(R.string.add_svc_err_select_server)
+            
             Button(
                 onClick = {
                     deployError = null
@@ -474,9 +479,9 @@ fun AddServiceScreen(
                     scope.launch {
                         val conn = selectedServer
                         if (conn == null) {
-                            logLines = logLines + "[ERROR] Сервер не выбран."
+                            logLines = logLines + "[ERROR] $errNoServer"
                             isDeploying = false
-                            deployError = "Выберите сервер."
+                            deployError = errSelectServer
                             return@launch
                         }
 
@@ -552,7 +557,7 @@ fun AddServiceScreen(
                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (isDeploying) "Деплой…" else if (deploySuccess) "Готово!" else if (isEditMode) "Сохранить изменения" else "Запустить",
+                    if (isDeploying) stringResource(R.string.add_svc_btn_deploying) else if (deploySuccess) stringResource(R.string.add_svc_btn_done) else if (isEditMode) stringResource(R.string.add_svc_btn_save) else stringResource(R.string.add_svc_btn_run),
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -614,3 +619,5 @@ private fun ServiceTextField(
         }
     }
 }
+
+private fun Modifier.size(size: Int) = size(size.dp)
