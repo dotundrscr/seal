@@ -82,34 +82,6 @@ sealed class ServicesLoadState {
 
 val servicePresets: List<ServicePresetUi> = listOf(
     ServicePresetUi(
-        name = "Garrys Mod",
-        icon = Icons.Rounded.SportsEsports,
-        template = """
-        services:
-          whoami:
-            image: traefik/whoami
-            ports:
-              - "%target%:80"
-            command:
-              - --name=%name%
-        """.trimIndent(),
-        fields = mapOf("target" to 2020, "name" to "gmod")
-    ),
-    ServicePresetUi(
-        name = "Hytale",
-        icon = Icons.Rounded.Gamepad,
-        template = """
-        services:
-          whoami:
-            image: traefik/whoami
-            ports:
-              - "%target%:80"
-            command:
-              - --name=%name%
-        """.trimIndent(),
-        fields = mapOf("target" to 3030, "name" to "hytale")
-    ),
-    ServicePresetUi(
         name = "Minecraft",
         icon = Icons.Rounded.Terrain,
         template = """
@@ -149,15 +121,39 @@ val servicePresets: List<ServicePresetUi> = listOf(
         name = "Nextcloud",
         icon = Icons.Rounded.Cloud,
         template = """
+        volumes:
+            nextcloud:
+            db:
+
         services:
-          whoami:
-            image: traefik/whoami
-            ports:
-              - "%target%:80"
-            command:
-              - --name=%name%
+            db:
+                image: mariadb:10.6
+                restart: always
+                command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+                volumes:
+                    - db:/var/lib/mysql
+                environment:
+                    - MYSQL_ROOT_PASSWORD=%sqlrootpassword%
+                    - MYSQL_PASSWORD=%sqlpassword%
+                    - MYSQL_DATABASE=nextcloud
+                    - MYSQL_USER=nextcloud
+
+            app:
+                image: nextcloud
+                restart: always
+                ports:
+                    - %target%:80
+                links:
+                    - db
+                volumes:
+                    - nextcloud:/var/www/html
+                environment:
+                    - MYSQL_PASSWORD=%sqlpassword%
+                    - MYSQL_DATABASE=nextcloud
+                    - MYSQL_USER=nextcloud
+                    - MYSQL_HOST=db
         """.trimIndent(),
-        fields = mapOf("target" to 5050, "name" to "nextcloud")
+        fields = mapOf("target" to 8080, "sqlpassword" to "CHANGEME", "sqlrootpassword" to "CHANGEME")
     ),
     ServicePresetUi(
         name = "PostgreSQL",
