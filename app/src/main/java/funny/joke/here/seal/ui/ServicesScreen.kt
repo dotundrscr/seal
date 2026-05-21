@@ -34,9 +34,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import org.json.JSONObject
 
 // ── Data models ──────────────────────────────────────────────────────────────
@@ -74,7 +72,10 @@ data class DeployedService(
 sealed class ServicesLoadState {
     object Idle : ServicesLoadState()
     object Loading : ServicesLoadState()
-    data class Success(val containers: List<DeployedContainer>) : ServicesLoadState()
+    data class Success(
+        val containers: List<DeployedContainer>,
+        val serverErrors: Map<String, String> = emptyMap()
+    ) : ServicesLoadState()
     data class Error(val message: String) : ServicesLoadState()
 }
 
@@ -161,33 +162,29 @@ val servicePresets: List<ServicePresetUi> = listOf(
 
 private suspend fun fetchServicesFromServer(server: SSH): List<DeployedContainer> {
     return withContext(Dispatchers.IO) {
-        runCatching {
-            if (!server.sessionActive()) {
-                server.openSession()
-            }
-            // Elegant single SSH roundtrip querying both ~/seal compose directories and all system docker containers
-            val raw = server.runCmd(
-                arrayOf(
-                    "if [ -d ~/seal ]; then",
-                    "  for d in ~/seal/*/; do",
-                    "    if [ -f \"\$d/compose.yml\" ] || [ -f \"\$d/docker-compose.yml\" ]; then",
-                    "      echo \"=== DIR: \$(basename \"\$d\") ===\"",
-                    "      if [ -f \"\$d/compose.yml\" ]; then cat \"\$d/compose.yml\"; else cat \"\$d/docker-compose.yml\"; fi",
-                    "      echo \"=== END ===\"",
-                    "    fi",
-                    "  done",
-                    "fi",
-                    "echo \"=== ALL PS ===\"",
-                    "docker ps -a --format json",
-                    "echo \"=== ALL PS END ===\""
-                )
-            )
-            server.closeSession()
-            parseDeployedContainers(server, raw)
-        }.getOrElse { e ->
-            runCatching { server.closeSession() }
-            emptyList()
+        if (!server.sessionActive()) {
+            server.openSession()
         }
+        // Use {{json .}} for better compatibility with older Docker versions (20.10+)
+        // and try sudo if regular docker ps fails.
+        val raw = server.runCmd(
+            arrayOf(
+                "if [ -d ~/seal ]; then",
+                "  for d in ~/seal/*/; do",
+                "    if [ -f \"\$d/compose.yml\" ] || [ -f \"\$d/docker-compose.yml\" ]; then",
+                "      echo \"=== DIR: \$(basename \"\$d\") ===\"",
+                "      if [ -f \"\$d/compose.yml\" ]; then cat \"\$d/compose.yml\"; else cat \"\$d/docker-compose.yml\"; fi",
+                "      echo \"=== END ===\"",
+                "    fi",
+                "  done",
+                "fi",
+                "echo \"=== ALL PS ===\"",
+                "docker ps -a --format \"{{json .}}\" || sudo docker ps -a --format \"{{json .}}\"",
+                "echo \"=== ALL PS END ===\""
+            )
+        )
+        server.closeSession()
+        parseDeployedContainers(server, raw)
     }
 }
 
@@ -298,6 +295,7 @@ private fun containerStateColor(state: String): Color {
 @Composable
 fun ServicesScreen(
     connections: List<SSH>,
+    refreshKey: Long = 0,
     modifier: Modifier = Modifier,
     onPresetSelected: (ServicePresetUi) -> Unit,
     onCustomComposeSelected: () -> Unit,
@@ -314,17 +312,35 @@ fun ServicesScreen(
             if (connections.isEmpty()) {
                 loadState = ServicesLoadState.Success(emptyList())
             } else {
-                val allContainers = mutableListOf<DeployedContainer>()
-                connections.forEach { conn ->
-                    allContainers += fetchServicesFromServer(conn)
+                try {
+                    val allContainers = mutableListOf<DeployedContainer>()
+                    val serverErrors = mutableMapOf<String, String>()
+                    coroutineScope {
+                        val results = connections.map { conn ->
+                            async {
+                                try {
+                                    conn.id to Result.success(fetchServicesFromServer(conn))
+                                } catch (e: Exception) {
+                                    conn.id to Result.failure<List<DeployedContainer>>(e)
+                                }
+                            }
+                        }.awaitAll()
+                        
+                        results.forEach { (serverId, res) ->
+                            res.onSuccess { allContainers.addAll(it) }
+                               .onFailure { serverErrors[serverId] = it.message ?: "Unknown error" }
+                        }
+                    }
+                    loadState = ServicesLoadState.Success(allContainers, serverErrors)
+                } catch (e: Exception) {
+                    loadState = ServicesLoadState.Error(e.message ?: "Unknown error")
                 }
-                loadState = ServicesLoadState.Success(allContainers)
             }
         }
     }
 
-    // Refresh lists on load or configuration change
-    LaunchedEffect(connections) {
+    // Refresh lists on load, configuration change, or explicit refreshKey change
+    LaunchedEffect(connections, refreshKey) {
         refreshServices()
     }
 
@@ -452,6 +468,7 @@ fun ServicesScreen(
                         ) {
                             connections.forEach { conn ->
                                 val serverContainers = state.containers.filter { it.server.id == conn.id }
+                                val serverError = state.serverErrors[conn.id]
                                 
                                 // Server Header: "Server Name (IP)"
                                 item(key = "hdr_${conn.id}") {
@@ -463,16 +480,25 @@ fun ServicesScreen(
                                         Text(
                                             text = "${conn.name.uppercase()} (${conn.host})",
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = if (serverError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                         )
                                         HorizontalDivider(
                                             modifier = Modifier.padding(top = 4.dp),
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                            color = if (serverError != null) MaterialTheme.colorScheme.error.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                         )
                                     }
                                 }
                                 
-                                if (serverContainers.isEmpty()) {
+                                if (serverError != null) {
+                                    item(key = "err_${conn.id}") {
+                                        Text(
+                                            text = serverError,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                } else if (serverContainers.isEmpty()) {
                                     item(key = "empty_${conn.id}") {
                                         Text(
                                             text = stringResource(R.string.services_no_containers),
@@ -805,7 +831,7 @@ private fun ServiceDetailsDialog(
         }
     }
 
-    val runContainerCommand = { cmdArray: Array<String> ->
+    fun runContainerCommand(cmdArray: Array<String>, onSuccess: (() -> Unit)? = null) {
         scope.launch {
             isOperating = true
             operationError = null
@@ -826,7 +852,11 @@ private fun ServiceDetailsDialog(
             isOperating = false
             if (success) {
                 onOperationSuccess()
-                fetchLogs()
+                if (onSuccess != null) {
+                    onSuccess.invoke()
+                } else {
+                    fetchLogs()
+                }
             }
         }
     }
@@ -988,7 +1018,7 @@ private fun ServiceDetailsDialog(
                         arrayOf("docker rm -f ${container.id}")
                     }
                     OutlinedButton(
-                        onClick = { runContainerCommand(deleteCmd) },
+                        onClick = { runContainerCommand(deleteCmd, onSuccess = { onDismiss() }) },
                         enabled = !isOperating,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         modifier = Modifier.weight(1f),

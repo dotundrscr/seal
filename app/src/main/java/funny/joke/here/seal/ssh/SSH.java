@@ -101,7 +101,10 @@ public final class SSH {
 
     // ── SSH execution ──────────────────────────────────────────────────────
 
-    public void openSession() throws JSchException {
+    public synchronized void openSession() throws JSchException {
+        if (session != null && session.isConnected()) {
+            return;
+        }
         JSch jsch = new JSch();
 
         session = jsch.getSession(username, host, port);
@@ -112,16 +115,21 @@ public final class SSH {
         session.connect();
     }
 
-    public void closeSession() {
-        session.disconnect();
-        session = null;
+    public synchronized void closeSession() {
+        if (session != null) {
+            session.disconnect();
+            session = null;
+        }
     }
 
-    public boolean sessionActive() {
-        return session != null;
+    public synchronized boolean sessionActive() {
+        return session != null && session.isConnected();
     }
 
-    public String runCmd(String[] commands) throws JSchException, IOException {
+    public synchronized String runCmd(String[] commands) throws JSchException, IOException {
+        if (session == null || !session.isConnected()) {
+            openSession();
+        }
         ChannelExec channel = (ChannelExec) session.openChannel("exec");
         String commandString = String.join("\n", commands);
         channel.setCommand(commandString);

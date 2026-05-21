@@ -79,6 +79,7 @@ fun SealApp() {
     var selectedPreset     by remember { mutableStateOf<ServicePresetUi?>(null) }
     var selectedCustomCompose by rememberSaveable { mutableStateOf(false) }
     var editingService     by remember { mutableStateOf<DeployedService?>(null) }
+    var refreshServicesKey by remember { mutableStateOf(0L) }
 
     val currentTheme = AppCompatDelegate.getDefaultNightMode().let { mode ->
         if (mode == AppCompatDelegate.MODE_NIGHT_UNSPECIFIED) AppCompatDelegate.MODE_NIGHT_YES else mode
@@ -135,6 +136,7 @@ fun SealApp() {
                 selectedPreset = null
                 selectedCustomCompose = false
                 editingService = null
+                refreshServicesKey++
             }
         )
     } else {
@@ -168,6 +170,7 @@ fun SealApp() {
                     )
                     AppDestinations.SERVICES -> ServicesScreen(
                         connections = connections,
+                        refreshKey = refreshServicesKey,
                         modifier = Modifier.padding(innerPadding),
                         onPresetSelected = { preset -> selectedPreset = preset },
                         onCustomComposeSelected = { selectedCustomCompose = true },

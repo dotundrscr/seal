@@ -466,6 +466,10 @@ fun AddServiceScreen(
             
             Button(
                 onClick = {
+                    if (deploySuccess) {
+                        onBack()
+                        return@Button
+                    }
                     deployError = null
                     deploySuccess = false
                     logLines = emptyList()
