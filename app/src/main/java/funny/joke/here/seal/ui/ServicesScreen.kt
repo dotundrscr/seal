@@ -154,20 +154,6 @@ val servicePresets: List<ServicePresetUi> = listOf(
                     - MYSQL_HOST=db
         """.trimIndent(),
         fields = mapOf("target" to 8080, "sqlpassword" to "CHANGEME", "sqlrootpassword" to "CHANGEME")
-    ),
-    ServicePresetUi(
-        name = "PostgreSQL",
-        icon = Icons.Rounded.Storage,
-        template = """
-        services:
-          whoami:
-            image: traefik/whoami
-            ports:
-              - "%target%:80"
-            command:
-              - --name=%name%
-        """.trimIndent(),
-        fields = mapOf("target" to 6060, "name" to "sql")
     )
 )
 
