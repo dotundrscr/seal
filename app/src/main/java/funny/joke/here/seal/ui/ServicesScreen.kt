@@ -344,6 +344,19 @@ fun ServicesScreen(
         refreshServices()
     }
 
+    // Update selected container details when services are refreshed
+    LaunchedEffect(loadState) {
+        if (loadState is ServicesLoadState.Success && selectedContainerForDetails != null) {
+            val updated = (loadState as ServicesLoadState.Success).containers.find {
+                it.container.id == selectedContainerForDetails!!.container.id &&
+                it.server.id == selectedContainerForDetails!!.server.id
+            }
+            if (updated != null) {
+                selectedContainerForDetails = updated
+            }
+        }
+    }
+
     if (showAddDialog) {
         AddServiceChoiceDialog(
             onDismiss = { showAddDialog = false },
@@ -799,6 +812,11 @@ private fun ServiceDetailsDialog(
     val noLogsStr = stringResource(R.string.details_no_logs)
     val errorLogsStr = stringResource(R.string.details_error_logs)
 
+    LaunchedEffect(logs) {
+        kotlinx.coroutines.delay(50)
+        logsScrollState.scrollTo(logsScrollState.maxValue)
+    }
+
     val fetchLogs = {
         scope.launch {
             logs = loadingLogsStr
@@ -1073,7 +1091,7 @@ private fun ServiceDetailsDialog(
                     Column(
                         modifier = Modifier
                             .padding(12.dp)
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(logsScrollState)
                     ) {
                         Text(
                             text = logs,
@@ -1121,6 +1139,7 @@ private fun MinecraftConsoleDialog(
     val errorLogsStr = stringResource(R.string.console_error)
 
     LaunchedEffect(consoleLogs) {
+        kotlinx.coroutines.delay(50)
         terminalScrollState.scrollTo(terminalScrollState.maxValue)
     }
     
