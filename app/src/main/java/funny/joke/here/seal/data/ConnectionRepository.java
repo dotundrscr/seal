@@ -20,19 +20,22 @@ import java.util.List;
  */
 public final class ConnectionRepository {
 
+    // Название файла соединений
     private static final String FILE_NAME = "connections.json";
 
+    // Контекст приложения (read/write файла)
     private final Context context;
 
     public ConnectionRepository(Context context) {
         this.context = context.getApplicationContext();
     }
 
+    // Получить файл соединений
     private File getFile() {
         return new File(context.getFilesDir(), FILE_NAME);
     }
 
-    /* Ретёрнит сохраненные соединения, ошибки и т.д. */
+    // Загружает список и возвращает его
     public List<SSH> loadAll() {
         List<SSH> result = new ArrayList<>();
         File file = getFile();
@@ -51,8 +54,7 @@ public final class ConnectionRepository {
         return result;
     }
 
-    /** Replaces the stored list with the given one. */
-
+    // Сохраняет соединения в файл
     public void saveAll(List<SSH> connections) {
         JSONArray arr = new JSONArray();
         try {
@@ -67,14 +69,13 @@ public final class ConnectionRepository {
         }
     }
 
-    /** добавляем connection */
+    // добавление/удаление
     public void add(SSH connection) {
         List<SSH> list = new ArrayList<>(loadAll());
         list.add(connection);
         saveAll(list);
     }
 
-    /** удаляем connection */
     public void remove(String id) {
         List<SSH> list = loadAll();
         list.removeIf(conn -> conn.getId().equals(id));

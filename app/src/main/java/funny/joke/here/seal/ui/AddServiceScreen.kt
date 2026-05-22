@@ -35,8 +35,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// ── Data models ───────────────────────────────────────────────────────────────
-
 data class ServicePresetUi(
     val name: String,
     val icon: ImageVector,
@@ -46,16 +44,13 @@ data class ServicePresetUi(
     val fields: Map<String, Any>
 )
 
-// ── Helpers for parsing fields from compose.yml ────────────────────────────────
-
 fun detectPreset(composeContent: String): String? {
     if (composeContent.contains("# PRESET: Garrys Mod")) return "Garrys Mod"
     if (composeContent.contains("# PRESET: Hytale")) return "Hytale"
     if (composeContent.contains("# PRESET: Minecraft")) return "Minecraft"
     if (composeContent.contains("# PRESET: Nextcloud")) return "Nextcloud"
     if (composeContent.contains("# PRESET: PostgreSQL")) return "PostgreSQL"
-    
-    // Fallback: search for unique strings in the compose file
+
     if (composeContent.contains("itzg/minecraft-server")) return "Minecraft"
     if (composeContent.contains("gmod")) return "Garrys Mod"
     if (composeContent.contains("hytale")) return "Hytale"
@@ -101,8 +96,6 @@ fun parseFieldsFromCompose(composeContent: String, presetName: String): Map<Stri
     return fields
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddServiceScreen(
@@ -114,7 +107,6 @@ fun AddServiceScreen(
     val scope = rememberCoroutineScope()
     val isEditMode = editingService != null
 
-    // ── Target server selection state ────────────────────────────────────────
     var selectedServer by remember {
         mutableStateOf(
             if (isEditMode) editingService!!.server
@@ -123,7 +115,6 @@ fun AddServiceScreen(
     }
     var showServerDropdown by remember { mutableStateOf(false) }
 
-    // ── Editable state for every template field ───────────────────────────────
     val fieldValues = remember {
         mutableStateMapOf<String, String>().also { map ->
             if (isEditMode && preset != null) {
@@ -157,14 +148,12 @@ fun AddServiceScreen(
         )
     }
 
-    // ── Deployment state ─────────────────────────────────────────────────────
     var isDeploying by remember { mutableStateOf(false) }
     var logLines by remember { mutableStateOf<List<String>>(emptyList()) }
     var deployError by remember { mutableStateOf<String?>(null) }
     var deploySuccess by remember { mutableStateOf(false) }
     val logScrollState = rememberScrollState()
 
-    // Auto-scroll log to bottom
     LaunchedEffect(logLines.size) {
         logScrollState.animateScrollTo(logScrollState.maxValue)
     }
@@ -197,7 +186,6 @@ fun AddServiceScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
 
-            // ── Preset or Custom header ─────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -237,7 +225,6 @@ fun AddServiceScreen(
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
             Spacer(Modifier.height(8.dp))
 
-            // ── Target Server Selection ───────────────────────────────────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -316,7 +303,6 @@ fun AddServiceScreen(
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
 
-            // ── targetFolder field ────────────────────────────────────────────
             ServiceTextField(
                 label = stringResource(R.string.add_svc_folder_label),
                 hint = stringResource(R.string.add_svc_folder_hint),
@@ -328,7 +314,6 @@ fun AddServiceScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
 
-            // ── Per-field inputs (Preset) or Raw Text Field (Custom) ──────────
             if (preset != null) {
                 preset.fields.keys.forEachIndexed { index, key ->
                     val currentValue = fieldValues[key] ?: ""
@@ -344,7 +329,6 @@ fun AddServiceScreen(
                     }
                 }
             } else {
-                // Custom compose text editor
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -372,7 +356,6 @@ fun AddServiceScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Log panel ─────────────────────────────────────────────────────
             AnimatedVisibility(
                 visible = logLines.isNotEmpty() || isDeploying,
                 enter = fadeIn() + expandVertically()
@@ -430,7 +413,6 @@ fun AddServiceScreen(
                 }
             }
 
-            // ── Error banner ──────────────────────────────────────────────────
             if (deployError != null) {
                 Surface(
                     modifier = Modifier
@@ -460,7 +442,6 @@ fun AddServiceScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            // ── Finish button ─────────────────────────────────────────────────
             val errNoServer = stringResource(R.string.add_svc_err_no_server)
             val errSelectServer = stringResource(R.string.add_svc_err_select_server)
             
@@ -565,8 +546,6 @@ fun AddServiceScreen(
         }
     }
 }
-
-// ── Reusable text field ───────────────────────────────────────────────────────
 
 @Composable
 private fun ServiceTextField(

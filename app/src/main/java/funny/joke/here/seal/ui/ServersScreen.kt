@@ -50,7 +50,6 @@ fun ServersScreen(
             }
         }
 
-        // Snackbar — above FAB
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
@@ -122,7 +121,6 @@ fun ConnectionCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Server icon
             Icon(
                 Icons.Rounded.Computer,
                 contentDescription = null,
@@ -132,7 +130,6 @@ fun ConnectionCard(
 
             Spacer(Modifier.width(12.dp))
 
-            // Name + address
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = connection.name,
@@ -149,7 +146,6 @@ fun ConnectionCard(
                 )
             }
 
-            // ── Test connection button ──────────────────────────────────────
             IconButton(
                 onClick = {
                     if (!isTesting) {
@@ -252,7 +248,6 @@ fun ConnectionCard(
                 }
             }
 
-            // ── Delete button ───────────────────────────────────────────────
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(
                     Icons.Rounded.Delete,
@@ -263,7 +258,6 @@ fun ConnectionCard(
         }
     }
 
-    // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

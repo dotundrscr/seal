@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,8 +35,6 @@ import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 import kotlinx.coroutines.*
 import org.json.JSONObject
-
-// ── Data models ──────────────────────────────────────────────────────────────
 
 data class DockerContainer(
     val id: String,
@@ -57,7 +54,6 @@ data class DeployedContainer(
     val container: DockerContainer
 )
 
-/** Kept for backward compatibility with MainActivity navigation and edit hooks */
 data class DeployedService(
     val server: SSH,
     val folderName: String,
@@ -78,8 +74,6 @@ sealed class ServicesLoadState {
     ) : ServicesLoadState()
     data class Error(val message: String) : ServicesLoadState()
 }
-
-// ── Presets static list ──────────────────────────────────────────────────────
 
 val servicePresets: List<ServicePresetUi> = listOf(
     ServicePresetUi(

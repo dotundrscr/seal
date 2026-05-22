@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 
+// Экран
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddConnectionScreen(
@@ -55,8 +56,6 @@ fun AddConnectionScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
-            // ── General ──────────────────────────────────────────────────────
             SectionLabel(stringResource(R.string.add_conn_section_general))
 
             OutlinedTextField(
@@ -70,8 +69,6 @@ fun AddConnectionScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-
-            // ── SSH ───────────────────────────────────────────────────────────
             SectionLabel(stringResource(R.string.add_conn_section_ssh))
 
             OutlinedTextField(
@@ -98,7 +95,6 @@ fun AddConnectionScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // ── Auth ──────────────────────────────────────────────────────────
             SectionLabel(stringResource(R.string.add_conn_section_auth))
 
             OutlinedTextField(
@@ -143,7 +139,6 @@ fun AddConnectionScreen(
                     hostError     = host.isBlank()
                     usernameError = username.isBlank()
                     if (!nameError && !hostError && !usernameError) {
-                        // Positional args — SSH is a Java class
                         onSave(
                             SSH(
                                 name.trim(),
