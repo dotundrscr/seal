@@ -14,28 +14,20 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Этот класс сохраняет объекты соединений SSH в виде массива JSON
- * во внутреннем хранилище приложения filesDir/connections.json).
- */
 public final class ConnectionRepository {
 
-    // Название файла соединений
     private static final String FILE_NAME = "connections.json";
 
-    // Контекст приложения (read/write файла)
     private final Context context;
 
     public ConnectionRepository(Context context) {
         this.context = context.getApplicationContext();
     }
 
-    // Получить файл соединений
     private File getFile() {
         return new File(context.getFilesDir(), FILE_NAME);
     }
 
-    // Загружает список и возвращает его
     public List<SSH> loadAll() {
         List<SSH> result = new ArrayList<>();
         File file = getFile();
@@ -54,7 +46,6 @@ public final class ConnectionRepository {
         return result;
     }
 
-    // Сохраняет соединения в файл
     public void saveAll(List<SSH> connections) {
         JSONArray arr = new JSONArray();
         try {
@@ -64,12 +55,9 @@ public final class ConnectionRepository {
             try (FileWriter writer = new FileWriter(getFile())) {
                 writer.write(arr.toString(2));
             }
-        } catch (JSONException | IOException e) {
-            // молчаливо игнорируем ошибки
-        }
+        } catch (JSONException | IOException ignored) {}
     }
 
-    // добавление/удаление
     public void add(SSH connection) {
         List<SSH> list = new ArrayList<>(loadAll());
         list.add(connection);

@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import funny.joke.here.seal.R
 import funny.joke.here.seal.ssh.SSH
 
-// Экран
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddConnectionScreen(

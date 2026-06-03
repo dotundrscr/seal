@@ -38,9 +38,7 @@ import kotlinx.coroutines.withContext
 data class ServicePresetUi(
     val name: String,
     val icon: ImageVector,
-    /** docker-compose template with %field% placeholders */
     val template: String,
-    /** field-key → default value (String or Int) */
     val fields: Map<String, Any>
 )
 
@@ -467,7 +465,6 @@ fun AddServiceScreen(
 
                         val folder = targetFolder.ifBlank { "service" }
 
-                        // Build the final compose file content
                         var finalCompose = if (preset != null) {
                             var yml = preset.template
                             fieldValues.forEach { (field, value) ->

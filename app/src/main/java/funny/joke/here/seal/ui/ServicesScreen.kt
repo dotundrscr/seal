@@ -58,11 +58,11 @@ data class DeployedService(
     val server: SSH,
     val folderName: String,
     val composeContent: String,
-    val state: String,         // "running" | "stopped" | "paused" etc.
-    val status: String,        // e.g. "Up 2 hours"
+    val state: String,
+    val status: String,
     val ports: String,
     val containers: List<DockerContainer>,
-    val presetName: String?    // Detected preset name if any
+    val presetName: String?
 )
 
 sealed class ServicesLoadState {
@@ -152,15 +152,11 @@ val servicePresets: List<ServicePresetUi> = listOf(
     )
 )
 
-// ── SSH Services & Containers Parser ─────────────────────────────────────────
-
 private suspend fun fetchServicesFromServer(server: SSH): List<DeployedContainer> {
     return withContext(Dispatchers.IO) {
         if (!server.sessionActive()) {
             server.openSession()
         }
-        // Use {{json .}} for better compatibility with older Docker versions (20.10+)
-        // and try sudo if regular docker ps fails.
         val raw = server.runCmd(
             arrayOf(
                 "if [ -d ~/seal ]; then",
@@ -183,8 +179,7 @@ private suspend fun fetchServicesFromServer(server: SSH): List<DeployedContainer
 }
 
 private fun parseDeployedContainers(server: SSH, raw: String): List<DeployedContainer> {
-    // 1. Parse compose configurations under ~/seal/
-    val composeProjects = mutableMapOf<String, String>() // folderName -> composeContent
+    val composeProjects = mutableMapOf<String, String>()
     val composeSections = raw.split("=== DIR: ")
     for (sec in composeSections) {
         if (sec.isBlank()) continue
@@ -192,7 +187,6 @@ private fun parseDeployedContainers(server: SSH, raw: String): List<DeployedCont
         if (firstLineEnd == -1) continue
         val folderName = sec.substring(0, firstLineEnd).trim()
         
-        // Skip echoed commands or headers
         if (folderName.contains("$") || folderName.contains("(") || folderName.contains(")") || folderName.contains("basename") || folderName.contains("&")) {
             continue
         }
@@ -207,7 +201,6 @@ private fun parseDeployedContainers(server: SSH, raw: String): List<DeployedCont
         composeProjects[folderName] = composeContent
     }
 
-    // 2. Locate the "=== ALL PS ===" section
     val psStartIndex = raw.indexOf("=== ALL PS ===")
     val psEndIndex = raw.indexOf("=== ALL PS END ===")
     val psContent = if (psStartIndex != -1) {
@@ -220,7 +213,6 @@ private fun parseDeployedContainers(server: SSH, raw: String): List<DeployedCont
         ""
     }
 
-    // 3. Parse all containers
     val containersList = mutableListOf<DeployedContainer>()
     psContent.lines().map { it.trim() }.filter { it.startsWith("{") && it.endsWith("}") }.forEach { line ->
         runCatching {
@@ -233,11 +225,9 @@ private fun parseDeployedContainers(server: SSH, raw: String): List<DeployedCont
             val ports = obj.optString("Ports", "")
             val labels = obj.optString("Labels", "")
 
-            // Match with compose configurations
             var matchedFolder: String? = null
             var matchedCompose: String? = null
             
-            // Try to find a match in the compose folders
             val cleanName = names.trimStart('/')
             for ((folder, compose) in composeProjects) {
                 val hasProjectLabel = labels.contains("com.docker.compose.project=$folder") || 
@@ -282,8 +272,6 @@ private fun containerStateColor(state: String): Color {
         else      -> Color(0xFF9E9E9E)
     }
 }
-
-// ── Screen: ServicesScreen ─────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -333,12 +321,10 @@ fun ServicesScreen(
         }
     }
 
-    // Refresh lists on load, configuration change, or explicit refreshKey change
     LaunchedEffect(connections, refreshKey) {
         refreshServices()
     }
 
-    // Update selected container details when services are refreshed
     LaunchedEffect(loadState) {
         if (loadState is ServicesLoadState.Success && selectedContainerForDetails != null) {
             val updated = (loadState as ServicesLoadState.Success).containers.find {
@@ -365,14 +351,12 @@ fun ServicesScreen(
         )
     }
 
-    // Container Management Dialog
     if (selectedContainerForDetails != null) {
         ServiceDetailsDialog(
             deployed = selectedContainerForDetails!!,
             onDismiss = { selectedContainerForDetails = null },
             onEditClick = { dep ->
                 selectedContainerForDetails = null
-                // Reconstruct DeployedService for backward compatibility with AddServiceScreen
                 val svc = DeployedService(
                     server = dep.server,
                     folderName = dep.container.composeFolderName!!,
@@ -477,7 +461,6 @@ fun ServicesScreen(
                                 val serverContainers = state.containers.filter { it.server.id == conn.id }
                                 val serverError = state.serverErrors[conn.id]
                                 
-                                // Server Header: "Server Name (IP)"
                                 item(key = "hdr_${conn.id}") {
                                     Column(
                                         modifier = Modifier
@@ -531,8 +514,6 @@ fun ServicesScreen(
     }
 }
 
-// ── Card: Docker Container Card ──────────────────────────────────────────────
-
 @Composable
 private fun ContainerCard(
     deployed: DeployedContainer,
@@ -555,7 +536,6 @@ private fun ContainerCard(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar Icon representing Preset, Compose, or Standalone Docker
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -588,7 +568,6 @@ private fun ContainerCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.width(8.dp))
-                    // State dot
                     Box(
                         modifier = Modifier
                             .size(8.dp)
@@ -642,8 +621,6 @@ private fun ContainerCard(
     }
 }
 
-// ── Empty State ──────────────────────────────────────────────────────────────
-
 @Composable
 private fun EmptyServicesState(
     hasServers: Boolean,
@@ -674,8 +651,6 @@ private fun EmptyServicesState(
     }
 }
 
-// ── Dialog: AddServiceChoiceDialog ──────────────────────────────────────────
-
 @Composable
 private fun AddServiceChoiceDialog(
     onDismiss: () -> Unit,
@@ -705,7 +680,6 @@ private fun AddServiceChoiceDialog(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // List of presets
                 servicePresets.forEach { preset ->
                     Row(
                         modifier = Modifier
@@ -735,7 +709,6 @@ private fun AddServiceChoiceDialog(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Custom compose row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -780,8 +753,6 @@ private fun AddServiceChoiceDialog(
         }
     }
 }
-
-// ── Dialog: ServiceDetailsDialog (Management + Logs) ───────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -873,7 +844,6 @@ private fun ServiceDetailsDialog(
         }
     }
 
-    // Auto load logs once dialog opens
     LaunchedEffect(Unit) {
         fetchLogs()
     }
@@ -914,7 +884,6 @@ private fun ServiceDetailsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Info block
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -954,7 +923,6 @@ private fun ServiceDetailsDialog(
                     }
                 }
 
-                // Power actions (Вкл/выкл)
                 Text(stringResource(R.string.details_mgmt_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
 
                 if (isOperating) {
@@ -1062,7 +1030,6 @@ private fun ServiceDetailsDialog(
                     }
                 }
 
-                // Logs display
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,

@@ -33,7 +33,6 @@ fun SettingsScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // ── Language ────────────────────────────────────────────────────────
         Text(
             text = stringResource(R.string.settings_language),
             style = MaterialTheme.typography.titleMedium,
@@ -54,7 +53,6 @@ fun SettingsScreen(
         
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-        // ── Theme ───────────────────────────────────────────────────────────
         Text(
             text = stringResource(R.string.settings_theme),
             style = MaterialTheme.typography.titleMedium,
@@ -98,7 +96,7 @@ fun SelectionOption(
     ) {
         RadioButton(
             selected = selected,
-            onClick = null // handled by Row clickable
+            onClick = null
         )
         Text(
             text = label,

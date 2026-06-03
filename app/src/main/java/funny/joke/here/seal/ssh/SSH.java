@@ -18,7 +18,6 @@ import java.io.PrintStream;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-// Соединение SSH
 public final class SSH {
 
     private final String id;
@@ -30,12 +29,10 @@ public final class SSH {
 
     private Session session;
 
-    // Создание нового соединения с рандомным UUID
     public SSH(String name, String host, int port, String username, String password) {
         this(UUID.randomUUID().toString(), name, host, port, username, password);
     }
 
-    // Создание нового соединения с определенным UUID
     public SSH(String id, String name, String host, int port,
             String username, String password) {
         this.id = id;
@@ -46,7 +43,6 @@ public final class SSH {
         this.password = password;
     }
 
-    // Получение пропов
     public String getId() {
         return id;
     }
@@ -71,7 +67,6 @@ public final class SSH {
         return password;
     }
 
-    // Конвертация в JSON
     public JSONObject toJson() throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("id", id);
@@ -83,7 +78,6 @@ public final class SSH {
         return obj;
     }
 
-    // Конвертация из JSON
     public static SSH fromJson(JSONObject json) throws JSONException {
         return new SSH(
                 json.getString("id"),
@@ -94,7 +88,6 @@ public final class SSH {
                 json.getString("password"));
     }
 
-    // Открытие новой сессии SSH
     public synchronized void openSession() throws JSchException {
         if (session != null && session.isConnected()) {
             return;
@@ -109,7 +102,6 @@ public final class SSH {
         session.connect();
     }
 
-    // Закрытие сессии SSH
     public synchronized void closeSession() {
         if (session != null) {
             session.disconnect();
@@ -117,12 +109,10 @@ public final class SSH {
         }
     }
 
-    // Возвращает, если сессия активна
     public synchronized boolean sessionActive() {
         return session != null && session.isConnected();
     }
 
-    // Запуск команд
     public synchronized String runCmd(String[] commands) throws JSchException, IOException {
         if (session == null || !session.isConnected()) {
             openSession();
@@ -156,7 +146,6 @@ public final class SSH {
         return result;
     }
 
-    // Кастомный toString()
     @Override
     public String toString() {
         return name + " (" + username + "@" + host + ":" + port + ")";

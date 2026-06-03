@@ -51,7 +51,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Default to Dark theme if not set
         if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_UNSPECIFIED) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         }
@@ -65,8 +64,6 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-// NOTE: @PreviewScreenSizes removed — SealApp uses LocalContext + file I/O
-//       which is not safe inside Compose Preview.
 @Composable
 fun SealApp() {
     val context    = LocalContext.current
@@ -95,14 +92,12 @@ fun SealApp() {
         }
     }
 
-    // Set default language to Russian if not set
     LaunchedEffect(Unit) {
         if (AppCompatDelegate.getApplicationLocales().isEmpty) {
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("ru"))
         }
     }
 
-    // Load saved connections from disk on first composition (background thread)
     LaunchedEffect(Unit) {
         connections = withContext(Dispatchers.IO) { repository.loadAll() }
     }
@@ -118,7 +113,6 @@ fun SealApp() {
     if (showAddConnection) {
         AddConnectionScreen(
             onSave = { conn ->
-                // File I/O on IO dispatcher, then update state on Main
                 scope.launch {
                     withContext(Dispatchers.IO) { repository.add(conn) }
                     connections       = withContext(Dispatchers.IO) { repository.loadAll() }
