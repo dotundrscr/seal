@@ -43,17 +43,15 @@ data class ServicePresetUi(
 )
 
 fun detectPreset(composeContent: String): String? {
-    if (composeContent.contains("# PRESET: Garrys Mod")) return "Garrys Mod"
-    if (composeContent.contains("# PRESET: Hytale")) return "Hytale"
     if (composeContent.contains("# PRESET: Minecraft")) return "Minecraft"
     if (composeContent.contains("# PRESET: Nextcloud")) return "Nextcloud"
-    if (composeContent.contains("# PRESET: PostgreSQL")) return "PostgreSQL"
+    if (composeContent.contains("# PRESET: Jellyfin")) return "Jellyfin"
+    if (composeContent.contains("# PRESET: Nginx Proxy Manager")) return "Nginx Proxy Manager"
 
     if (composeContent.contains("itzg/minecraft-server")) return "Minecraft"
-    if (composeContent.contains("gmod")) return "Garrys Mod"
-    if (composeContent.contains("hytale")) return "Hytale"
     if (composeContent.contains("nextcloud")) return "Nextcloud"
-    if (composeContent.contains("sql")) return "PostgreSQL"
+    if (composeContent.contains("jellyfin")) return "Jellyfin"
+    if (composeContent.contains("nginx-proxy-manager")) return "Nginx Proxy Manager"
     
     return null
 }
@@ -83,12 +81,32 @@ fun parseFieldsFromCompose(composeContent: String, presetName: String): Map<Stri
             val onlineRegex = """ONLINE_MODE:\s*['"]?([a-zA-Z0-9_-]+)['"]?""".toRegex()
             onlineRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["online"] = it }
         }
-        "Garrys Mod", "Hytale", "Nextcloud", "PostgreSQL" -> {
+        "Nextcloud" -> {
             val targetRegex = """-\s*['"]?(\d+):80['"]?""".toRegex()
             targetRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["target"] = it }
-            
-            val nameRegex = """--name=([a-zA-Z0-9_-]+)""".toRegex()
-            nameRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["name"] = it }
+
+            val sqlPassRegex = """MYSQL_PASSWORD=([^\s\n]+)""".toRegex()
+            sqlPassRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["sqlpassword"] = it }
+
+            val sqlRootRegex = """MYSQL_ROOT_PASSWORD=([^\s\n]+)""".toRegex()
+            sqlRootRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["sqlrootpassword"] = it }
+        }
+        "Jellyfin" -> {
+            val portRegex = """-\s*['"]?(\d+):8096['"]?""".toRegex()
+            portRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["port"] = it }
+
+            val mediaRegex = """-\s*['"]?([^:]+):/media['"]?""".toRegex()
+            mediaRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["media_path"] = it }
+        }
+        "Nginx Proxy Manager" -> {
+            val httpRegex = """-\s*['"]?(\d+):80['"]?""".toRegex()
+            httpRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["http_port"] = it }
+
+            val httpsRegex = """-\s*['"]?(\d+):443['"]?""".toRegex()
+            httpsRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["https_port"] = it }
+
+            val adminRegex = """-\s*['"]?(\d+):81['"]?""".toRegex()
+            adminRegex.find(composeContent)?.groupValues?.get(1)?.let { fields["admin_port"] = it }
         }
     }
     return fields
