@@ -106,8 +106,10 @@ fun SealApp() {
         showAddConnection = false
     }
 
-    BackHandler(enabled = selectedPreset != null) {
+    BackHandler(enabled = selectedPreset != null || selectedCustomCompose || editingService != null) {
         selectedPreset = null
+        selectedCustomCompose = false
+        editingService = null
     }
 
     if (showAddConnection) {
