@@ -149,6 +149,50 @@ val servicePresets: List<ServicePresetUi> = listOf(
                     - MYSQL_HOST=db
         """.trimIndent(),
         fields = mapOf("target" to 8080, "sqlpassword" to "CHANGEME", "sqlrootpassword" to "CHANGEME")
+    ),
+    ServicePresetUi(
+        name = "Jellyfin",
+        icon = Icons.Rounded.Movie,
+        template = """
+    services:
+      jellyfin:
+        image: jellyfin/jellyfin:latest
+        container_name: jellyfin
+        restart: unless-stopped
+        ports:
+          - "%port%:8096"
+        volumes:
+          - './config:/config'
+          - './cache:/cache'
+          - '%media_path%:/media'
+    """.trimIndent(),
+        fields = mapOf(
+            "port" to 8096,
+            "media_path" to "/home/user/videos"
+        )
+    ),
+    ServicePresetUi(
+        name = "Nginx Proxy Manager",
+        icon = Icons.Rounded.Dns,
+        template = """
+    services:
+      npm:
+        image: 'jc21/nginx-proxy-manager:latest'
+        container_name: nginx-proxy-manager
+        restart: unless-stopped
+        ports:
+          - '%http_port%:80'
+          - '%https_port%:443'
+          - '%admin_port%:81'
+        volumes:
+          - './data:/data'
+          - './letsencrypt:/etc/letsencrypt'
+    """.trimIndent(),
+        fields = mapOf(
+            "http_port" to 80,
+            "https_port" to 443,
+            "admin_port" to 8181
+        )
     )
 )
 
